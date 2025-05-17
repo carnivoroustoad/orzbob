@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -70,6 +71,13 @@ var (
 			// Kill any daemon that's running.
 			if err := daemon.StopDaemon(); err != nil {
 				log.ErrorLog.Printf("failed to stop daemon: %v", err)
+			}
+
+			// Run auto-update check after logging is initialized and before starting the app UI
+			// This is done silently and only shows output if an update is available
+			if err := runAutoUpdateCheck(); err != nil {
+				log.ErrorLog.Printf("auto-update check failed: %v", err)
+				// Continue execution even if auto-update fails
 			}
 
 			return app.Run(ctx, program, autoYes)
@@ -156,6 +164,17 @@ var (
 	}
 )
 
+// runAutoUpdateCheck is a helper function that safely runs the auto-update check
+func runAutoUpdateCheck() error {
+	// Only run auto-update check for the main command, not for subcommands
+	if len(os.Args) > 1 && os.Args[1] == "auto-update" {
+		return nil // Skip if we're already running auto-update
+	}
+	
+	// Run auto-update check
+	return update.AutoUpdateCmd.RunE(update.AutoUpdateCmd, []string{})
+}
+
 func init() {
 	// Set the global version variable for the update package
 	update.CurrentVersion = version
@@ -181,18 +200,11 @@ func init() {
 }
 
 func main() {
-	// Initialize log early for auto-update
+	// Initialize log for error handling
 	log.Initialize(false)
-	
-	// Run auto-update check before executing command
-	// This is done silently and only shows output if an update is available
-	// and auto-install is disabled
-	_ = update.AutoUpdateCmd.RunE(update.AutoUpdateCmd, []string{})
+	defer log.Close()
 	
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 	}
-	
-	// Clean up log
-	log.Close()
 }
