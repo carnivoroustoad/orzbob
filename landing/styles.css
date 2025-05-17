@@ -116,6 +116,7 @@ header {
     background-color: var(--code-background);
     border-radius: 8px;
     padding: 1.2rem 1.5rem;
+    padding-right: 6rem;
     position: relative;
     overflow: hidden;
     text-align: left;
@@ -137,8 +138,8 @@ code {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: none;
+    background-color: var(--code-background);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--code-text);
     padding: 0.4rem 0.8rem;
     border-radius: 4px;
@@ -147,11 +148,13 @@ code {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    z-index: 5;
 }
 
 .copy-button:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .copy-icon {
