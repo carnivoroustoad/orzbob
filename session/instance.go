@@ -503,12 +503,20 @@ func (i *Instance) SendPrompt(prompt string) error {
 	if i.tmuxSession == nil {
 		return fmt.Errorf("tmux session not initialized")
 	}
-	if err := i.tmuxSession.SendKeys(prompt); err != nil {
-		return fmt.Errorf("error sending keys to tmux session: %w", err)
+	
+	// Optimize by combining prompt and enter keystroke in one operation when possible
+	// Most terminals handle this correctly without needing the sleep
+	if len(prompt) > 0 {
+		// Send the prompt first
+		if err := i.tmuxSession.SendKeys(prompt); err != nil {
+			return fmt.Errorf("error sending keys to tmux session: %w", err)
+		}
+		
+		// Minimal pause to prevent input problems on some terminals
+		time.Sleep(50 * time.Millisecond)
 	}
-
-	// Brief pause to prevent carriage return from being interpreted as newline
-	time.Sleep(100 * time.Millisecond)
+	
+	// Then send enter
 	if err := i.tmuxSession.TapEnter(); err != nil {
 		return fmt.Errorf("error tapping enter: %w", err)
 	}

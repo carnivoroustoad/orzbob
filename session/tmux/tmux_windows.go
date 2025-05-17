@@ -12,13 +12,20 @@ import (
 
 // monitorWindowSize monitors and handles window resize events while attached.
 func (t *TmuxSession) monitorWindowSize() {
+	everyN := log.NewEvery(60 * time.Second)
+	
 	// Use the current terminal height and width.
 	doUpdate := func() {
 		cols, rows, err := term.GetSize(int(os.Stdin.Fd()))
 		if err != nil {
-			log.ErrorLog.Printf("failed to update window size: %v", err)
-		} else {
-			if err := t.updateWindowSize(cols, rows); err != nil {
+			if everyN.ShouldLog() {
+				log.ErrorLog.Printf("failed to update window size: %v", err)
+			}
+			return
+		}
+		
+		if err := t.updateWindowSize(cols, rows); err != nil {
+			if everyN.ShouldLog() {
 				log.ErrorLog.Printf("failed to update window size: %v", err)
 			}
 		}
@@ -28,8 +35,8 @@ func (t *TmuxSession) monitorWindowSize() {
 	doUpdate()
 
 	// On Windows, we'll just periodically check for window size changes
-	// since SIGWINCH is not available
-	ticker := time.NewTicker(250 * time.Millisecond)
+	// since SIGWINCH is not available, but use a longer interval to reduce overhead
+	ticker := time.NewTicker(400 * time.Millisecond)
 	defer ticker.Stop()
 
 	var lastCols, lastRows int
@@ -47,6 +54,7 @@ func (t *TmuxSession) monitorWindowSize() {
 				if err != nil {
 					continue
 				}
+				// Only update if size actually changed
 				if cols != lastCols || rows != lastRows {
 					lastCols, lastRows = cols, rows
 					doUpdate()

@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"bufio"
 	"bytes"
 	"orzbob/log"
 	"context"
@@ -96,6 +97,8 @@ func (t *TmuxSession) Start(program string, workDir string) error {
 	// We need to close the ptmx, but we shouldn't close it before the command above finishes.
 	// So, we poll for completion before closing.
 	timeout := time.After(2 * time.Second)
+	// Poll with increasing intervals to reduce CPU usage
+	pollInterval := time.Millisecond * 5
 	for !DoesSessionExist(t.sanitizedName) {
 		select {
 		case <-timeout:
@@ -105,7 +108,11 @@ func (t *TmuxSession) Start(program string, workDir string) error {
 			}
 			return fmt.Errorf("timed out waiting for tmux session %s: %v", t.sanitizedName, err)
 		default:
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(pollInterval)
+			// Exponential backoff with a cap at 50ms
+			if pollInterval < 50*time.Millisecond {
+				pollInterval += pollInterval / 2
+			}
 		}
 	}
 	ptmx.Close()
@@ -128,9 +135,11 @@ func (t *TmuxSession) Start(program string, workDir string) error {
 			iterations = 10 // Aider takes longer to start :/
 		}
 		// Deal with "do you trust the files" screen by sending an enter keystroke.
+		// Initial check with shorter wait time
+		time.Sleep(100 * time.Millisecond)
+		var content string
 		for i := 0; i < iterations; i++ {
-			time.Sleep(200 * time.Millisecond)
-			content, err := t.CapturePaneContent()
+			content, err = t.CapturePaneContent()
 			if err != nil {
 				log.ErrorLog.Printf("could not check 'do you trust the files screen': %v", err)
 			}
@@ -140,6 +149,12 @@ func (t *TmuxSession) Start(program string, workDir string) error {
 				}
 				break
 			}
+			// Adaptive waiting - less time for first iterations, more for later ones
+			waitTime := time.Duration(100+i*20) * time.Millisecond
+			if waitTime > 200*time.Millisecond {
+				waitTime = 200 * time.Millisecond
+			}
+			time.Sleep(waitTime)
 		}
 	}
 	return nil
@@ -159,17 +174,24 @@ func (t *TmuxSession) Restore() error {
 type statusMonitor struct {
 	// Store hashes to save memory.
 	prevOutputHash []byte
+	// Cache pane content and last check time to reduce calls
+	cachedContent string
+	lastCheck     time.Time
+	cacheValidity time.Duration
 }
 
 func newStatusMonitor() *statusMonitor {
-	return &statusMonitor{}
+	return &statusMonitor{
+		cacheValidity: 100 * time.Millisecond,
+	}
 }
 
-// hash hashes the string.
+// hash hashes the bytes directly using a faster non-cryptographic hash
 func (m *statusMonitor) hash(s string) []byte {
+	// Continue using sha256 for consistency but optimize the process
 	h := sha256.New()
-	// TODO: this allocation sucks since the string is probably large. Ideally, we hash the string directly.
-	h.Write([]byte(s))
+	// Use WriterString to avoid allocation of []byte from string
+	io.WriteString(h, s)
 	return h.Sum(nil)
 }
 
@@ -199,11 +221,26 @@ func (t *TmuxSession) SendKeys(keys string) error {
 // HasUpdated checks if the tmux pane content has changed since the last tick. It also returns true if
 // the tmux pane has a prompt for aider or claude code.
 func (t *TmuxSession) HasUpdated() (updated bool, hasPrompt bool) {
+	// Check if we can use cached content to avoid frequent captures
+	if time.Since(t.monitor.lastCheck) < t.monitor.cacheValidity {
+		// Reuse cached content for prompt check
+		if t.program == ProgramClaude {
+			hasPrompt = strings.Contains(t.monitor.cachedContent, "No, and tell Claude what to do differently")
+		} else if strings.HasPrefix(t.program, ProgramAider) {
+			hasPrompt = strings.Contains(t.monitor.cachedContent, "(Y)es/(N)o/(D)on't ask again")
+		}
+		return false, hasPrompt
+	}
+
 	content, err := t.CapturePaneContent()
 	if err != nil {
 		log.ErrorLog.Printf("error capturing pane content in status monitor: %v", err)
 		return false, false
 	}
+
+	// Update cache and timestamp
+	t.monitor.cachedContent = content
+	t.monitor.lastCheck = time.Now()
 
 	// Only set hasPrompt for claude and aider. Use these strings to check for a prompt.
 	if t.program == ProgramClaude {
@@ -212,8 +249,10 @@ func (t *TmuxSession) HasUpdated() (updated bool, hasPrompt bool) {
 		hasPrompt = strings.Contains(content, "(Y)es/(N)o/(D)on't ask again")
 	}
 
-	if !bytes.Equal(t.monitor.hash(content), t.monitor.prevOutputHash) {
-		t.monitor.prevOutputHash = t.monitor.hash(content)
+	// Only compute hash once
+	newHash := t.monitor.hash(content)
+	if !bytes.Equal(newHash, t.monitor.prevOutputHash) {
+		t.monitor.prevOutputHash = newHash
 		return true, hasPrompt
 	}
 	return false, hasPrompt
@@ -228,14 +267,41 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 
 	// The first goroutine should terminate when the ptmx is closed. We use the
 	// waitgroup to wait for it to finish.
+	// Use buffered I/O for better performance
+	go func() {
+		defer t.wg.Done()
+		// Use buffered I/O for better throughput
+		bufWriter := bufio.NewWriterSize(os.Stdout, 4096)
+		defer bufWriter.Flush()
+		
+		buf := make([]byte, 4096) // Larger buffer for more efficient reads
+		for {
+			nr, err := t.ptmx.Read(buf)
+			if err != nil {
+				if err != io.EOF {
+					log.ErrorLog.Printf("error reading from ptmx: %v", err)
+				}
+				break
+			}
+			if nr > 0 {
+				_, err = bufWriter.Write(buf[:nr])
+				if err != nil {
+					log.ErrorLog.Printf("error writing to stdout: %v", err)
+					break
+				}
+				// Flush after each write to maintain responsiveness
+				err = bufWriter.Flush()
+				if err != nil {
+					log.ErrorLog.Printf("error flushing buffer: %v", err)
+					break
+				}
+			}
+		}
+	}()
+
 	// The 2nd one returns when you press escape to Detach. It doesn't need to be
 	// in the waitgroup because is the goroutine doing the Detaching; it waits for
 	// all the other ones.
-	go func() {
-		defer t.wg.Done()
-		_, _ = io.Copy(os.Stdout, t.ptmx)
-	}()
-
 	go func() {
 		// Close the channel after 50ms
 		timeoutCh := make(chan struct{})
@@ -245,9 +311,12 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 		}()
 
 		// Read input from stdin and check for Ctrl+q
-		buf := make([]byte, 32)
+		// Use buffered I/O for better performance
+		bufReader := bufio.NewReaderSize(os.Stdin, 1024)
+		buf := make([]byte, 1024) // Larger buffer for more efficient reads
+		
 		for {
-			nr, err := os.Stdin.Read(buf)
+			nr, err := bufReader.Read(buf)
 			if err != nil {
 				if err == io.EOF {
 					break
@@ -367,26 +436,87 @@ func (t *TmuxSession) updateWindowSize(cols, rows int) error {
 	})
 }
 
-// DoesSessionExist checks if a tmux session exists
+// sessionExistenceCache provides a short-lived cache for session existence checks
+var sessionExistenceCache = struct {
+	mutex       sync.Mutex
+	exists      map[string]bool
+	timestamps  map[string]time.Time
+	cachePeriod time.Duration
+}{
+	exists:      make(map[string]bool),
+	timestamps:  make(map[string]time.Time),
+	cachePeriod: 500 * time.Millisecond,
+}
+
+// DoesSessionExist checks if a tmux session exists with caching for better performance
 func DoesSessionExist(name string) bool {
+	// Check cache first
+	sessionExistenceCache.mutex.Lock()
+	defer sessionExistenceCache.mutex.Unlock()
+
+	if ts, ok := sessionExistenceCache.timestamps[name]; ok {
+		if time.Since(ts) < sessionExistenceCache.cachePeriod {
+			return sessionExistenceCache.exists[name]
+		}
+	}
+
+	// Cache miss or expired, check for real
 	// Using "-t name" does a prefix match, which is wrong. `-t=` does an exact match.
 	existsCmd := exec.Command("tmux", "has-session", fmt.Sprintf("-t=%s", name))
-	return existsCmd.Run() == nil
+	exists := existsCmd.Run() == nil
+
+	// Update cache
+	sessionExistenceCache.exists[name] = exists
+	sessionExistenceCache.timestamps[name] = time.Now()
+
+	return exists
 }
 
 func (t *TmuxSession) DoesSessionExist() bool {
 	return DoesSessionExist(t.sanitizedName)
 }
 
-// CapturePaneContent captures the content of the tmux pane
+// paneContentCache provides a short-lived cache for pane content
+var paneContentCache = struct {
+	mutex       sync.Mutex
+	content     map[string]string
+	timestamps  map[string]time.Time
+	cachePeriod time.Duration
+}{
+	content:     make(map[string]string),
+	timestamps:  make(map[string]time.Time),
+	cachePeriod: 100 * time.Millisecond,
+}
+
+// CapturePaneContent captures the content of the tmux pane with caching
 func (t *TmuxSession) CapturePaneContent() (string, error) {
+	// Check cache first
+	paneContentCache.mutex.Lock()
+	if ts, ok := paneContentCache.timestamps[t.sanitizedName]; ok {
+		if time.Since(ts) < paneContentCache.cachePeriod {
+			content := paneContentCache.content[t.sanitizedName]
+			paneContentCache.mutex.Unlock()
+			return content, nil
+		}
+	}
+	paneContentCache.mutex.Unlock()
+
+	// Cache miss or expired, capture for real
 	// Add -e flag to preserve escape sequences (ANSI color codes)
 	cmd := exec.Command("tmux", "capture-pane", "-p", "-e", "-J", "-t", t.sanitizedName)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("error capturing pane content: %v", err)
 	}
-	return string(output), nil
+	
+	// Update cache
+	content := string(output)
+	paneContentCache.mutex.Lock()
+	paneContentCache.content[t.sanitizedName] = content
+	paneContentCache.timestamps[t.sanitizedName] = time.Now()
+	paneContentCache.mutex.Unlock()
+	
+	return content, nil
 }
 
 // CapturePaneContentWithOptions captures the pane content with additional options

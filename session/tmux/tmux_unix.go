@@ -20,6 +20,10 @@ func (t *TmuxSession) monitorWindowSize() {
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
 
 	everyN := log.NewEvery(60 * time.Second)
+	
+	// Track last known window size to avoid unnecessary updates
+	var lastCols, lastRows int
+	lastCols, lastRows, _ = term.GetSize(int(os.Stdin.Fd()))
 
 	doUpdate := func() {
 		// Use the current terminal height and width.
@@ -28,18 +32,26 @@ func (t *TmuxSession) monitorWindowSize() {
 			if everyN.ShouldLog() {
 				log.ErrorLog.Printf("failed to update window size: %v", err)
 			}
-		} else {
-			if err := t.updateWindowSize(cols, rows); err != nil {
-				if everyN.ShouldLog() {
-					log.ErrorLog.Printf("failed to update window size: %v", err)
-				}
+			return
+		}
+		
+		// Skip update if size hasn't changed
+		if cols == lastCols && rows == lastRows {
+			return
+		}
+		
+		lastCols, lastRows = cols, rows
+		
+		if err := t.updateWindowSize(cols, rows); err != nil {
+			if everyN.ShouldLog() {
+				log.ErrorLog.Printf("failed to update window size: %v", err)
 			}
 		}
 	}
 	// Do one at the end of the function to set the initial size.
 	defer doUpdate()
 
-	// Debounce resize events
+	// Debounce resize events with longer duration
 	t.wg.Add(2)
 	debouncedWinch := make(chan os.Signal, 1)
 	go func() {
@@ -53,7 +65,8 @@ func (t *TmuxSession) monitorWindowSize() {
 				if resizeTimer != nil {
 					resizeTimer.Stop()
 				}
-				resizeTimer = time.AfterFunc(50*time.Millisecond, func() {
+				// Increase debounce time to 120ms for better performance
+				resizeTimer = time.AfterFunc(120*time.Millisecond, func() {
 					select {
 					case debouncedWinch <- syscall.SIGWINCH:
 					case <-t.ctx.Done():
