@@ -1,9 +1,9 @@
 package config
 
 import (
-	"orzbob/log"
 	"encoding/json"
 	"fmt"
+	"orzbob/log"
 	"os"
 	"path/filepath"
 	"time"
@@ -39,12 +39,12 @@ type Config struct {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultProgram:      "claude",
-		AutoYes:             false,
-		DaemonPollInterval:  1000,
-		EnableAutoUpdate:    true,
-		AutoInstallUpdates:  false,
-		LastUpdateCheck:     0,
+		DefaultProgram:     "claude",
+		AutoYes:            false,
+		DaemonPollInterval: 1000,
+		EnableAutoUpdate:   true,
+		AutoInstallUpdates: false,
+		LastUpdateCheck:    0,
 	}
 }
 

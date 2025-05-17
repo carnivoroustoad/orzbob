@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"orzbob/app"
 	"orzbob/config"
 	"orzbob/daemon"
@@ -9,9 +12,6 @@ import (
 	"orzbob/session/git"
 	"orzbob/session/tmux"
 	"orzbob/update"
-	"context"
-	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"time"
 
@@ -126,16 +126,16 @@ var (
 			configJson, _ := json.MarshalIndent(cfg, "", "  ")
 
 			fmt.Printf("Config: %s\n%s\n", filepath.Join(configDir, config.ConfigFileName), configJson)
-			
+
 			// Print update information
 			fmt.Printf("\nUpdate information:\n")
 			fmt.Printf("Current version: v%s\n", version)
 			fmt.Printf("Auto-update enabled: %t\n", cfg.EnableAutoUpdate)
 			fmt.Printf("Auto-install updates: %t\n", cfg.AutoInstallUpdates)
-			
+
 			if cfg.LastUpdateCheck > 0 {
 				lastCheck := time.Unix(cfg.LastUpdateCheck, 0)
-				fmt.Printf("Last update check: %s (%s ago)\n", 
+				fmt.Printf("Last update check: %s (%s ago)\n",
 					lastCheck.Format(time.RFC1123),
 					time.Since(lastCheck).Round(time.Second))
 			} else {
@@ -183,16 +183,16 @@ func init() {
 func main() {
 	// Initialize log early for auto-update
 	log.Initialize(false)
-	
+
 	// Run auto-update check before executing command
 	// This is done silently and only shows output if an update is available
 	// and auto-install is disabled
 	_ = update.AutoUpdateCmd.RunE(update.AutoUpdateCmd, []string{})
-	
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 	}
-	
+
 	// Clean up log
 	log.Close()
 }

@@ -1,10 +1,10 @@
 package ui
 
 import (
-	"orzbob/log"
-	"orzbob/session"
 	"errors"
 	"fmt"
+	"orzbob/log"
+	"orzbob/session"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"

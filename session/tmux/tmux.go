@@ -2,12 +2,12 @@ package tmux
 
 import (
 	"bytes"
-	"orzbob/log"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"orzbob/log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -165,10 +165,8 @@ func newStatusMonitor() *statusMonitor {
 	return &statusMonitor{}
 }
 
-// hash hashes the string.
 func (m *statusMonitor) hash(s string) []byte {
 	h := sha256.New()
-	// TODO: this allocation sucks since the string is probably large. Ideally, we hash the string directly.
 	h.Write([]byte(s))
 	return h.Sum(nil)
 }
@@ -285,11 +283,7 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 	return t.attachCh, nil
 }
 
-// Detach disconnects from the current tmux session. It panics if detaching fails. At the moment, there's no
-// way to recover from a failed detach.
 func (t *TmuxSession) Detach() {
-	// TODO: control flow is a bit messy here. If there's an error,
-	// I'm not sure if we get into a bad state. Needs testing.
 	defer func() {
 		close(t.attachCh)
 		t.attachCh = nil

@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"fmt"
 	"orzbob/config"
 	"orzbob/log"
 	"orzbob/session"
-	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"

@@ -1,9 +1,9 @@
 package git
 
 import (
-	"orzbob/log"
 	"fmt"
 	"io"
+	"orzbob/log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,7 +92,6 @@ func (g *GitWorktree) SetupNewWorktree() error {
 	// Create a new worktree from the HEAD commit
 	// Otherwise, we'll inherit uncommitted changes from the previous worktree.
 	// This way, we can start the worktree with a clean slate.
-	// TODO: we might want to give an option to use main/master instead of the current branch.
 	if _, err := g.runGitCommand(g.repoPath, "worktree", "add", "-b", g.branchName, g.worktreePath, headCommit); err != nil {
 		return fmt.Errorf("failed to create worktree from commit %s: %w", headCommit, err)
 	}
@@ -193,9 +192,6 @@ func (g *GitWorktree) copyUntrackedFiles() error {
 		// Construct source and destination paths
 		sourcePath := filepath.Join(g.repoPath, file)
 		destPath := filepath.Join(g.worktreePath, file)
-
-		// Detailed logging would go here if needed (commented out to reduce log verbosity)
-		// log.InfoLog.Printf("Copying %s to %s", sourcePath, destPath)
 
 		// Ensure the destination directory exists
 		destDir := filepath.Dir(destPath)

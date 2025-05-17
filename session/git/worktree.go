@@ -1,9 +1,9 @@
 package git
 
 import (
+	"fmt"
 	"orzbob/config"
 	"orzbob/log"
-	"fmt"
 	"path/filepath"
 	"time"
 )
