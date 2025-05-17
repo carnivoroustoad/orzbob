@@ -111,7 +111,7 @@ var (
 			} else {
 				// Just notify the user about the update
 				fmt.Printf("\nUpdate available: v%s → v%s\n", CurrentVersion, release.TagName[1:])
-				fmt.Printf("Run 'orzbob update' to install the update.\n\n")
+				fmt.Printf("Run 'orz update' to install the update.\n\n")
 			}
 			
 			return nil

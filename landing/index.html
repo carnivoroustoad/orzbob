@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>orzbob - Become a 100x Engineer</title>
+    <title>orz - Become a 100x Engineer</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,18 +57,38 @@
                 </div>
             </section>
 
-            <section class="screenshot-section">
-                <img src="../assets/screenshot.png" alt="orzbob screenshot" class="screenshot">
+            <section id="install" class="install-section">
+                <h2>Installation</h2>
+                <p>Install orz with a single command:</p>
+                <div class="code-block">
+                    <pre><code>curl -fsSL https://raw.githubusercontent.com/carnivoroustoad/orzbob/main/install.sh | bash</code></pre>
+                    <button class="copy-button" onclick="copyInstallCommand()">
+                        <span class="copy-text">Copy</span>
+                        <span class="copied-text">Copied!</span>
+                    </button>
+                </div>
+                <p class="install-note">This will install orz and its dependencies (tmux and GitHub CLI).</p>
             </section>
-            
-            <section class="cta-section">
-                <a href="/docs" class="button primary">View Documentation</a>
-                <a href="https://github.com/carnivoroustoad/orzbob" class="button outline" target="_blank">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
-                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                    GitHub
-                </a>
+
+            <section class="usage">
+                <h2>How It Works</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Initialize in your git repository</h3>
+                        <p>Run <code>orz</code> in your git repository to start managing sessions</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Create new sessions for features</h3>
+                        <p>Each session gets its own git worktree and isolated environment</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Switch between sessions seamlessly</h3>
+                        <p>No more context switching overhead between different tasks</p>
+                    </div>
+                </div>
             </section>
         </main>
 
