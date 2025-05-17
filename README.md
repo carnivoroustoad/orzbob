@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/aef18253-e58f-4525-9032-f5a3d66c975a
 
 ### Installation
 
-The easiest way to install `orzbob` is by running the following command:
+The easiest way to install `orz` is by running the following command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/carnivoroustoad/orzbob/main/install.sh | bash
@@ -32,7 +32,7 @@ This will install the `orz` binary to `~/.local/bin` and add it to your PATH. To
 curl -fsSL https://raw.githubusercontent.com/carnivoroustoad/orzbob/main/install.sh | bash -s -- --name <name>
 ```
 
-Alternatively, you can also install `orzbob` by building from source or installing a [pre-built binary](https://github.com/carnivoroustoad/orzbob/releases).
+Alternatively, you can also install `orz` by building from source or installing a [pre-built binary](https://github.com/carnivoroustoad/orzbob/releases).
 
 ### Prerequisites
 
@@ -52,11 +52,11 @@ Available Commands:
   help        Help about any command
   reset       Reset all stored instances
   update      Check for and apply updates
-  version     Print the version number of orzbob
+  version     Print the version number of orz
 
 Flags:
   -y, --autoyes          [experimental] If enabled, all instances will automatically accept prompts for claude code & aider
-  -h, --help             help for orzbob
+  -h, --help             help for orz
   -p, --program string   Program to run in new instances (e.g. 'aider --model ollama_chat/gemma3:1b')
 ```
 

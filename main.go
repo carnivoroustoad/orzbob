@@ -24,7 +24,7 @@ var (
 	autoYesFlag bool
 	daemonFlag  bool
 	rootCmd     = &cobra.Command{
-		Use:   "orzbob",
+		Use:   "orz",
 		Short: "Orzbob - A terminal-based session manager",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
@@ -45,7 +45,7 @@ var (
 			}
 
 			if !git.IsGitRepo(currentDir) {
-				return fmt.Errorf("error: orzbob must be run from within a git repository")
+				return fmt.Errorf("error: orz must be run from within a git repository")
 			}
 
 			cfg := config.LoadConfig()
@@ -148,9 +148,9 @@ var (
 
 	versionCmd = &cobra.Command{
 		Use:   "version",
-		Short: "Print the version number of orzbob",
+		Short: "Print the version number of orz",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("orzbob version %s\n", version)
+			fmt.Printf("orz version %s\n", version)
 			fmt.Printf("https://github.com/carnivoroustoad/orzbob/releases/tag/v%s\n", version)
 		},
 	}
