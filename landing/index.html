@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -16,43 +16,44 @@
                 <h1>orzbob</h1>
                 <div class="badge">Beta</div>
             </div>
-            <div class="header-links">
-                <a href="https://github.com/carnivoroustoad/orzbob" target="_blank">GitHub</a>
-                <a href="https://github.com/carnivoroustoad/orzbob/releases" target="_blank">Releases</a>
-                <a href="https://github.com/carnivoroustoad/orzbob/issues" target="_blank">Issues</a>
-            </div>
+            <nav class="header-links">
+                <a href="/docs" class="nav-link">Docs</a>
+                <a href="https://github.com/carnivoroustoad/orzbob" target="_blank" class="nav-link">GitHub</a>
+            </nav>
         </header>
 
         <main>
             <section class="hero">
-                <h1>Become a <span class="highlight">100x Engineer</span> with orzbob</h1>
-                <p class="subtitle">A terminal-based session manager that supercharges your development workflow</p>
-                <div class="buttons">
-                    <a href="#install" class="button primary">Get Started</a>
-                    <a href="https://github.com/carnivoroustoad/orzbob" class="button secondary" target="_blank">View on GitHub</a>
+                <h1>Become a <span class="highlight">100x Engineer</span></h1>
+                <p class="subtitle">Submit 5x more PRs with higher quality. Switch contexts instantly.</p>
+                
+                <div class="install-container">
+                    <div class="code-block">
+                        <pre><code>curl -fsSL https://raw.githubusercontent.com/carnivoroustoad/orzbob/main/install.sh | bash</code></pre>
+                        <button class="copy-button" onclick="copyInstallCommand()" aria-label="Copy install command">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="copy-icon">
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                            </svg>
+                            <span class="copy-text">Copy</span>
+                            <span class="copied-text">Copied!</span>
+                        </button>
+                    </div>
                 </div>
             </section>
 
-            <section class="features">
-                <div class="feature-card">
-                    <div class="icon">🚀</div>
-                    <h3>Multiple Sessions</h3>
-                    <p>Effortlessly manage multiple development sessions with isolated environments</p>
+            <section class="features-minimal">
+                <div class="feature-item">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-text">Manage multiple project branches simultaneously</div>
                 </div>
-                <div class="feature-card">
-                    <div class="icon">🔄</div>
-                    <p>Automatic Updates</p>
-                    <p>Stay up-to-date with the latest features and improvements</p>
+                <div class="feature-item">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-text">Eliminate context switching overhead</div>
                 </div>
-                <div class="feature-card">
-                    <div class="icon">🌱</div>
-                    <h3>Git Integration</h3>
-                    <p>Seamless git worktree management for parallel feature development</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">⚡</div>
-                    <h3>Productivity Boost</h3>
-                    <p>Streamline your workflow and accomplish more in less time</p>
+                <div class="feature-item">
+                    <div class="feature-icon">🌱</div>
+                    <div class="feature-text">Seamless git worktree integration</div>
                 </div>
             </section>
 
@@ -92,12 +93,8 @@
         </main>
 
         <footer>
-            <p>&copy; 2025 orzbob. Open source under MIT License.</p>
-            <div class="footer-links">
-                <a href="https://github.com/carnivoroustoad/orzbob" target="_blank">GitHub</a>
-                <a href="https://github.com/carnivoroustoad/orzbob/releases" target="_blank">Releases</a>
-                <a href="https://github.com/carnivoroustoad/orzbob/issues" target="_blank">Issues</a>
-            </div>
+            <p class="attribution">Based on Claude Squad</p>
+            <p class="copyright">&copy; 2025 orzbob</p>
         </footer>
     </div>
 

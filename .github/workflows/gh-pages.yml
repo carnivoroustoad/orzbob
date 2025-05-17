@@ -16,6 +16,7 @@ jobs:
         run: |
           mkdir -p public
           cp -r landing/* public/
+          cp CNAME public/
       
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>orzbob Documentation</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Documentation-specific styles */
+        .doc-subtitle {
+            font-size: 1.2rem;
+            color: var(--light-text-color);
+            margin-bottom: 1.5rem;
+        }
+        .docs-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+        }
+        
+        .sidebar {
+            padding-right: 1.5rem;
+            border-right: 1px solid var(--border-color);
+        }
+        
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .sidebar-nav a {
+            color: var(--light-text-color);
+            text-decoration: none;
+            font-size: 0.95rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background-color: var(--card-background);
+            color: var(--accent-color);
+        }
+        
+        .content {
+            max-width: 100%;
+        }
+        
+        .content h1 {
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .content h2 {
+            font-size: 1.6rem;
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+        }
+        
+        .content h3 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 0.75rem;
+        }
+        
+        .content p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        .content ul, .content ol {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+        
+        .content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .command {
+            background-color: var(--code-background);
+            color: var(--code-text);
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9rem;
+            position: relative;
+            padding-right: 6rem;
+        }
+        
+        .command-name {
+            color: #50fa7b;
+            font-weight: 600;
+        }
+        
+        .argument {
+            color: #ffb86c;
+            font-style: italic;
+        }
+        
+        .home-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 2rem;
+            color: var(--accent-color);
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+        }
+        
+        .home-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .docs-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                padding-right: 0;
+                border-right: none;
+                padding-bottom: 1.5rem;
+                margin-bottom: 1.5rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <h1>orzbob</h1>
+                <div class="badge">Beta</div>
+            </div>
+            <nav class="header-links">
+                <a href="../" class="nav-link">Home</a>
+                <a href="/docs" class="nav-link">Docs</a>
+                <a href="https://github.com/carnivoroustoad/orzbob" target="_blank" class="nav-link">GitHub</a>
+            </nav>
+        </header>
+
+        <a href="../" class="home-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+        </a>
+
+        <div class="docs-container">
+            <div class="sidebar">
+                <h2 class="sidebar-title">Documentation</h2>
+                <nav class="sidebar-nav">
+                    <a href="#getting-started" class="active">Getting Started</a>
+                    <a href="#commands">Commands</a>
+                    <a href="#configuration">Configuration</a>
+                    <a href="#git-integration">Git Integration</a>
+                    <a href="#tmux-usage">Tmux Usage</a>
+                    <a href="#faq">FAQ</a>
+                </nav>
+            </div>
+
+            <div class="content">
+                <h1>orzbob Documentation</h1>
+                <p class="doc-subtitle">Become a 100x engineer with improved workflow</p>
+                <p>orzbob is a terminal-based session manager designed to help developers manage multiple project sessions efficiently using git worktrees and tmux.</p>
+
+                <h2 id="getting-started">Getting Started</h2>
+                <p>To get started with orzbob, you'll need to install it on your system.</p>
+
+                <div class="command">
+                    <span>curl -fsSL https://raw.githubusercontent.com/carnivoroustoad/orzbob/main/install.sh | bash</span>
+                </div>
+
+                <p>This command will install orzbob, along with its dependencies (tmux and GitHub CLI) if they are not already installed.</p>
+
+                <h3>Requirements</h3>
+                <ul>
+                    <li>A Unix-like operating system (MacOS, Linux)</li>
+                    <li>Git</li>
+                    <li>Tmux (installed automatically)</li>
+                    <li>GitHub CLI (installed automatically)</li>
+                </ul>
+
+                <h2 id="commands">Commands</h2>
+                <p>Here are the main commands available in orzbob:</p>
+
+                <h3>Basic Commands</h3>
+                <div class="command">
+                    <span class="command-name">orzbob</span>
+                </div>
+                <p>Run this in a git repository to initialize orzbob and manage your sessions.</p>
+
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">new [branch-name]</span>
+                </div>
+                <p>Create a new session with the specified branch name. This will create a new git worktree.</p>
+
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">list</span>
+                </div>
+                <p>List all available sessions.</p>
+
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">switch [session-name]</span>
+                </div>
+                <p>Switch to an existing session.</p>
+
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">delete [session-name]</span>
+                </div>
+                <p>Delete a session and its associated git worktree.</p>
+
+                <h3>Advanced Commands</h3>
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">update</span>
+                </div>
+                <p>Check for and install updates to orzbob.</p>
+
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">help</span>
+                </div>
+                <p>Display help information about orzbob commands.</p>
+
+                <h2 id="configuration">Configuration</h2>
+                <p>orzbob can be configured to suit your workflow preferences. The configuration file is located at:</p>
+
+                <div class="command">
+                    <span>~/.config/orzbob/config.json</span>
+                </div>
+
+                <p>You can customize the following settings:</p>
+                <ul>
+                    <li><strong>Default Branch:</strong> The default branch to use when creating new worktrees.</li>
+                    <li><strong>Tmux Configuration:</strong> Customize how tmux sessions are created and managed.</li>
+                    <li><strong>Git Integration:</strong> Configure how orzbob interacts with git repositories.</li>
+                </ul>
+
+                <h2 id="git-integration">Git Integration</h2>
+                <p>orzbob uses git worktrees to create isolated development environments for each session. This allows you to work on multiple branches simultaneously without having to stash or commit your changes.</p>
+
+                <p>When you create a new session, orzbob will:</p>
+                <ol>
+                    <li>Create a new git worktree at <code>~/.orzbob/worktrees/[branch-name]</code></li>
+                    <li>Set up a new tmux session for the worktree</li>
+                    <li>Provide an isolated environment for your development</li>
+                </ol>
+
+                <h2 id="tmux-usage">Tmux Usage</h2>
+                <p>orzbob leverages tmux to manage terminal sessions. Here are some helpful tmux commands that you can use while working with orzbob:</p>
+
+                <ul>
+                    <li><strong>Ctrl+b d:</strong> Detach from the current tmux session</li>
+                    <li><strong>Ctrl+b c:</strong> Create a new window</li>
+                    <li><strong>Ctrl+b n:</strong> Go to the next window</li>
+                    <li><strong>Ctrl+b p:</strong> Go to the previous window</li>
+                    <li><strong>Ctrl+b %:</strong> Split the window vertically</li>
+                    <li><strong>Ctrl+b ":</strong> Split the window horizontally</li>
+                    <li><strong>Ctrl+b arrow keys:</strong> Navigate between panes</li>
+                </ul>
+
+                <h2 id="faq">FAQ</h2>
+                <h3>How do I update orzbob?</h3>
+                <p>You can update orzbob by running:</p>
+                <div class="command">
+                    <span class="command-name">orzbob</span> <span class="argument">update</span>
+                </div>
+
+                <h3>Can I use orzbob with non-GitHub repositories?</h3>
+                <p>Yes, orzbob works with any git repository. The GitHub CLI integration is primarily for convenience features.</p>
+
+                <h3>How do I report issues or request features?</h3>
+                <p>You can report issues or request features on the <a href="https://github.com/carnivoroustoad/orzbob/issues" target="_blank">GitHub issues page</a>.</p>
+
+                <h3>Does orzbob work on Windows?</h3>
+                <p>orzbob is primarily designed for Unix-like operating systems (macOS, Linux). Windows support may be limited.</p>
+
+                <h3>How can I contribute to orzbob?</h3>
+                <p>Contributions are welcome! Check out our <a href="https://github.com/carnivoroustoad/orzbob/blob/main/CONTRIBUTING.md" target="_blank">contributing guidelines</a> to get started.</p>
+            </div>
+        </div>
+
+        <footer>
+            <div class="footer-container">
+                <div class="footer-section">
+                    <p>&copy; 2025 orzbob. Open source under MIT License.</p>
+                    <p class="attribution">Based on Claude Squad</p>
+                </div>
+                <div class="footer-links">
+                    <a href="../">Home</a>
+                    <a href="https://github.com/carnivoroustoad/orzbob" target="_blank">GitHub</a>
+                    <a href="https://github.com/carnivoroustoad/orzbob/issues" target="_blank">Issues</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Simple active link highlighting for the sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('.sidebar-nav a');
+            
+            function setActive() {
+                const hash = window.location.hash || '#getting-started';
+                
+                links.forEach(link => {
+                    if (link.getAttribute('href') === hash) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+            
+            window.addEventListener('hashchange', setActive);
+            setActive();
+            
+            // Smooth scrolling for anchor links
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 100,
+                            behavior: 'smooth'
+                        });
+                        
+                        window.location.hash = targetId;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

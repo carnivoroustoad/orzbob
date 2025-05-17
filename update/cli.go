@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"orzbob/config"
 	"orzbob/log"
-	"os"
-	"os/exec"
 	"time"
 	
 	"github.com/spf13/cobra"
@@ -100,33 +98,16 @@ var (
 				return nil
 			}
 			
-			// If auto-install is enabled, install the update
+			// If auto-install is enabled, install the update but NEVER restart automatically
 			if cfg.AutoInstallUpdates {
 				if err := DownloadAndInstall(release); err != nil {
 					log.ErrorLog.Printf("Auto-update installation failed: %v", err)
 					return nil
 				}
 				
-				// Restart the application after successful update
-				executable, err := os.Executable()
-				if err != nil {
-					log.ErrorLog.Printf("Failed to get executable path: %v", err)
-					return nil
-				}
-				
-				// Execute the new binary with the same arguments
-				cmd := exec.Command(executable, os.Args[1:]...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				cmd.Stdin = os.Stdin
-				
-				if err := cmd.Start(); err != nil {
-					log.ErrorLog.Printf("Failed to restart after update: %v", err)
-					return nil
-				}
-				
-				// Exit the current process
-				os.Exit(0)
+				// Notify the user about the successful update instead of restarting
+				fmt.Printf("\nUpdate installed: v%s → v%s\n", CurrentVersion, release.TagName[1:])
+				fmt.Printf("Please restart the application to use the new version.\n\n")
 			} else {
 				// Just notify the user about the update
 				fmt.Printf("\nUpdate available: v%s → v%s\n", CurrentVersion, release.TagName[1:])
