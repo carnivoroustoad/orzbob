@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Install script for orzbob
+# Usage: ./install.sh [--name <name>] [version]
+# Examples:
+#   ./install.sh             # Install latest version
+#   ./install.sh 1.6         # Install specific version 1.6
+#   VERSION=1.5 ./install.sh # Install version 1.5 via environment variable
 
 set -e
 
@@ -259,9 +265,19 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: install.sh [--name <n>]"
-                exit 1
+                # Check if this might be a version specification
+                if [[ "$1" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+                    VERSION="$1"
+                    shift
+                else
+                    echo "Unknown option: $1"
+                    echo "Usage: install.sh [--name <name>] [version]"
+                    echo "Examples:"
+                    echo "  ./install.sh         # Install latest version"
+                    echo "  ./install.sh 1.6     # Install specific version"
+                    echo "  ./install.sh --name custom_name"
+                    exit 1
+                fi
                 ;;
         esac
     done
@@ -273,9 +289,11 @@ main() {
     
     setup_shell_and_path
 
-    VERSION=${VERSION:-"latest"}
-    if [[ "$VERSION" == "latest" ]]; then
+    # If VERSION is not set or is "latest", fetch the latest version
+    # This ensures we always get the latest unless VERSION is explicitly set
+    if [[ -z "${VERSION}" || "$VERSION" == "latest" ]]; then
         VERSION=$(get_latest_version)
+        echo "Installing latest version: $VERSION"
     fi
 
     RELEASE_URL="https://github.com/carnivoroustoad/orzbob/releases/download/v${VERSION}"
