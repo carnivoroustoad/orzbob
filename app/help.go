@@ -40,7 +40,7 @@ func (h helpType) ToContent(instance *session.Instance) string {
 	switch h {
 	case helpTypeGeneral:
 		content := lipgloss.JoinVertical(lipgloss.Left,
-			titleStyle.Render("Claude Squad"),
+			titleStyle.Render("orzbob"),
 			"",
 			"A terminal UI that manages multiple Claude Code (and other local agents) in separate workspaces.",
 			"",
