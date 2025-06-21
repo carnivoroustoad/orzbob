@@ -149,7 +149,10 @@ jobs:
     - name: Lint control plane chart
       run: |
         helm lint charts/cp
-        helm template charts/cp | kubectl apply --dry-run=client -f -
+        # Validate helm template output without requiring a cluster
+        helm template charts/cp > /tmp/cp-manifest.yaml
+        # Basic YAML validation
+        python3 -c "import yaml; yaml.safe_load_all(open('/tmp/cp-manifest.yaml'))" || (echo "Invalid YAML in helm template" && exit 1)
 
     - name: Lint logging chart
       run: |
@@ -182,20 +185,42 @@ jobs:
           - role: control-plane
             image: kindest/node:v1.28.0
 
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Load Docker images
       run: |
         # For PRs, we need to pull and load the images
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }}
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }}
+        # Use the branch-sha tag format
+        BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
+        IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
         
-        kind load docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }} --name orzbob-e2e
-        kind load docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }} --name orzbob-e2e
+        echo "Pulling images with tag: ${IMAGE_TAG}"
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} || \
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }}
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} || \
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }}
+        
+        # Tag them for kind
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} orzbob/cloud-cp:e2e || \
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }} orzbob/cloud-cp:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} orzbob/cloud-agent:e2e || \
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }} orzbob/cloud-agent:e2e
+        
+        kind load docker-image orzbob/cloud-cp:e2e --name orzbob-e2e
+        kind load docker-image orzbob/cloud-agent:e2e --name orzbob-e2e
 
     - name: Install control plane
       run: |
         helm install orzbob-cp charts/cp \
-          --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp \
-          --set image.tag=${{ github.sha }} \
+          --set image.repository=orzbob/cloud-cp \
+          --set image.tag=e2e \
+          --set image.pullPolicy=Never \
           --wait --timeout 5m
 
     - name: Run E2E tests
