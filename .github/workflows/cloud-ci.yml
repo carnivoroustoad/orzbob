@@ -245,9 +245,9 @@ jobs:
     - name: Collect logs on failure
       if: failure()
       run: |
-        kubectl describe pods
-        kubectl logs -l app=orzbob-cp --tail=100
-        kubectl logs -l app=orzbob-agent --tail=100 || true
+        kubectl describe pods || echo "Unable to describe pods"
+        kubectl logs -l app=orzbob-cp --tail=100 || echo "No control plane logs found"
+        kubectl logs -l app=orzbob-agent --tail=100 || echo "No agent logs found"
 
   # Job 6: Security scan
   security-scan:
@@ -257,6 +257,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
@@ -265,7 +272,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v2
-      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      if: success()
       with:
         sarif_file: 'trivy-results.sarif'
