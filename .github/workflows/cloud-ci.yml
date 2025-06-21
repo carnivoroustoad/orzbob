@@ -178,12 +178,7 @@ jobs:
       uses: helm/kind-action@v1.8.0
       with:
         cluster_name: orzbob-e2e
-        config: |
-          kind: Cluster
-          apiVersion: kind.x-k8s.io/v1alpha4
-          nodes:
-          - role: control-plane
-            image: kindest/node:v1.28.0
+        node_image: kindest/node:v1.28.0
 
     - name: Log in to the Container registry
       uses: docker/login-action@v3
