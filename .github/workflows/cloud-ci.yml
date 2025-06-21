@@ -248,7 +248,17 @@ jobs:
           --set image.repository=orzbob/cloud-cp \
           --set image.tag=e2e \
           --set image.pullPolicy=Never \
-          --wait --timeout 5m
+          --set config.runnerImage=orzbob/cloud-agent:e2e \
+          --wait --timeout 2m || {
+          echo "Installation failed, checking pod status..."
+          kubectl get pods
+          kubectl describe pods
+          echo "Checking pod logs..."
+          kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=50 || true
+          echo "Checking events..."
+          kubectl get events --sort-by='.lastTimestamp' | tail -20
+          exit 1
+        }
 
     - name: Run E2E tests
       run: |
