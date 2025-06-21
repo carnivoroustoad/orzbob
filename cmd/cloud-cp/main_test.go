@@ -235,10 +235,12 @@ func TestJWTAttachValidation(t *testing.T) {
 	}
 	
 	server := &Server{
-		provider:     fp,
-		tokenManager: tm,
-		router:       chi.NewRouter(),
-		heartbeats:   make(map[string]time.Time),
+		provider:       fp,
+		tokenManager:   tm,
+		router:         chi.NewRouter(),
+		heartbeats:     make(map[string]time.Time),
+		instanceCounts: make(map[string]int),
+		freeQuota:      2,
 	}
 	server.setupRoutes()
 	
@@ -249,9 +251,17 @@ func TestJWTAttachValidation(t *testing.T) {
 	// Update server base URL to match test server
 	server.baseURL = ts.URL
 	
-	// Create an instance
+	// Create an instance with org ID header
 	reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-	resp, err := http.Post(ts.URL+"/v1/instances", "application/json", reqBody)
+	req, err := http.NewRequest("POST", ts.URL+"/v1/instances", reqBody)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Org-ID", "test-org-jwt-validation")
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to create instance: %v", err)
 	}
@@ -365,10 +375,12 @@ func TestInstanceCreationWithJWT(t *testing.T) {
 	}
 	
 	server := &Server{
-		provider:     fp,
-		tokenManager: tm,
-		router:       chi.NewRouter(),
-		heartbeats:   make(map[string]time.Time),
+		provider:       fp,
+		tokenManager:   tm,
+		router:         chi.NewRouter(),
+		heartbeats:     make(map[string]time.Time),
+		instanceCounts: make(map[string]int),
+		freeQuota:      2,
 	}
 	server.setupRoutes()
 	
@@ -379,9 +391,17 @@ func TestInstanceCreationWithJWT(t *testing.T) {
 	// Update server base URL to match test server
 	server.baseURL = ts.URL
 	
-	// Create an instance
+	// Create an instance with org ID header
 	reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-	resp, err := http.Post(ts.URL+"/v1/instances", "application/json", reqBody)
+	req, err := http.NewRequest("POST", ts.URL+"/v1/instances", reqBody)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Org-ID", "test-org-instance-creation")
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to create instance: %v", err)
 	}
