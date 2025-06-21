@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,10 @@ type LocalKind struct {
 func NewLocalKind(kubeconfig string) (*LocalKind, error) {
 	var config *rest.Config
 	var err error
+	
+	// Debug: Log environment variable at provider creation time
+	runnerImage := os.Getenv("RUNNER_IMAGE")
+	log.Printf("DEBUG NewLocalKind: RUNNER_IMAGE env var = %q", runnerImage)
 	
 	if kubeconfig == "" {
 		// Try in-cluster config first
@@ -69,6 +74,16 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 	
 	// Get runner image from environment or use default
 	runnerImage := os.Getenv("RUNNER_IMAGE")
+	log.Printf("DEBUG CreateInstanceWithConfig: RUNNER_IMAGE = %q", runnerImage)
+	
+	// Debug: Show all env vars that contain RUNNER
+	log.Println("DEBUG: Environment variables containing 'RUNNER':")
+	for _, env := range os.Environ() {
+		if strings.Contains(strings.ToUpper(env), "RUNNER") {
+			log.Printf("  %s", env)
+		}
+	}
+	
 	if runnerImage == "" {
 		runnerImage = "runner:dev"
 		log.Printf("DEBUG: RUNNER_IMAGE env var not set, using default: %s", runnerImage)
