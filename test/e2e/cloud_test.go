@@ -72,8 +72,8 @@ func TestE2ECloudWorkflow(t *testing.T) {
 		}
 
 		// Clean up - delete the instance
-		req, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+createResp.ID, nil)
-		resp, err = http.DefaultClient.Do(req)
+		delReq, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+createResp.ID, nil)
+		resp, err = http.DefaultClient.Do(delReq)
 		if err != nil {
 			t.Logf("Failed to delete instance: %v", err)
 		}
@@ -159,11 +159,11 @@ func TestE2ECloudWorkflow(t *testing.T) {
 		
 		// Try to create third instance (should fail)
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Org-ID", "e2e-test-org")
+		thirdReq, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
+		thirdReq.Header.Set("Content-Type", "application/json")
+		thirdReq.Header.Set("X-Org-ID", "e2e-test-org")
 		
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(thirdReq)
 		if err != nil {
 			t.Fatalf("Failed to attempt third instance: %v", err)
 		}
@@ -175,8 +175,8 @@ func TestE2ECloudWorkflow(t *testing.T) {
 		
 		// Clean up - delete instances
 		for _, id := range instances {
-			req, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+id, nil)
-			resp, _ := http.DefaultClient.Do(req)
+			delReq, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+id, nil)
+			resp, _ := http.DefaultClient.Do(delReq)
 			resp.Body.Close()
 		}
 	})
@@ -221,8 +221,8 @@ func TestE2ESecrets(t *testing.T) {
 		}
 		
 		// Clean up - delete secret
-		req, _ := http.NewRequest("DELETE", baseURL+"/v1/secrets/test-secret", nil)
-		resp, _ = http.DefaultClient.Do(req)
+		delSecretReq, _ := http.NewRequest("DELETE", baseURL+"/v1/secrets/test-secret", nil)
+		resp, _ = http.DefaultClient.Do(delSecretReq)
 		resp.Body.Close()
 	})
 }
