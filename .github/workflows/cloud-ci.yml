@@ -194,40 +194,50 @@ jobs:
         # Use the branch-sha tag format
         BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
         BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
-        IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
+        SHORT_SHA=${GITHUB_SHA::7}
         
-        echo "Pulling images with tag: ${IMAGE_TAG}"
+        # Try different tag formats
+        echo "Trying to pull images with different tag formats..."
         
-        # Retry logic for pulling images (they may take time to be available)
-        for i in {1..10}; do
-          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG}; then
-            echo "Successfully pulled cloud-cp image"
-            break
-          elif [ $i -eq 10 ]; then
-            echo "Failed to pull cloud-cp image after 10 attempts"
-            exit 1
-          else
-            echo "Attempt $i failed, waiting 30 seconds..."
-            sleep 30
-          fi
-        done
+        # Try branch-shortsha format first
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}-${SHORT_SHA}; then
+          echo "Pulled with branch-shortsha tag"
+          CP_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        # Try sha-shortsha format
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:sha-${SHORT_SHA}; then
+          echo "Pulled with sha-shortsha tag"
+          CP_TAG="sha-${SHORT_SHA}"
+        # Try just branch name
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}; then
+          echo "Pulled with branch tag"
+          CP_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to pull cloud-cp image with any tag format"
+          echo "Available tags might be:"
+          echo "  ${BRANCH_NAME}-${SHORT_SHA}"
+          echo "  sha-${SHORT_SHA}"
+          echo "  ${BRANCH_NAME}"
+          exit 1
+        fi
         
-        for i in {1..10}; do
-          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG}; then
-            echo "Successfully pulled cloud-agent image"
-            break
-          elif [ $i -eq 10 ]; then
-            echo "Failed to pull cloud-agent image after 10 attempts"
-            exit 1
-          else
-            echo "Attempt $i failed, waiting 30 seconds..."
-            sleep 30
-          fi
-        done
+        # Same for agent
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${BRANCH_NAME}-${SHORT_SHA}; then
+          echo "Pulled agent with branch-shortsha tag"
+          AGENT_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:sha-${SHORT_SHA}; then
+          echo "Pulled agent with sha-shortsha tag"
+          AGENT_TAG="sha-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${BRANCH_NAME}; then
+          echo "Pulled agent with branch tag"
+          AGENT_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to pull cloud-agent image"
+          exit 1
+        fi
         
         # Tag them for kind
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} orzbob/cloud-cp:e2e
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} orzbob/cloud-agent:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${CP_TAG} orzbob/cloud-cp:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${AGENT_TAG} orzbob/cloud-agent:e2e
         
         kind load docker-image orzbob/cloud-cp:e2e --name orzbob-e2e
         kind load docker-image orzbob/cloud-agent:e2e --name orzbob-e2e
@@ -286,27 +296,22 @@ jobs:
       run: |
         BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
         BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
-        IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
-        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-
-    - name: Wait for image availability
-      run: |
-        IMAGE_TAG="${{ steps.image-tag.outputs.tag }}"
-        echo "Waiting for image to be available: ${IMAGE_TAG}"
+        SHORT_SHA=${GITHUB_SHA::7}
         
-        # Retry logic for image availability
-        for i in {1..10}; do
-          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG}; then
-            echo "Image is available"
-            break
-          elif [ $i -eq 10 ]; then
-            echo "Image not available after 10 attempts"
-            exit 1
-          else
-            echo "Attempt $i failed, waiting 30 seconds..."
-            sleep 30
-          fi
-        done
+        # Try to determine which tag format was used
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}-${SHORT_SHA}; then
+          IMAGE_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:sha-${SHORT_SHA}; then
+          IMAGE_TAG="sha-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}; then
+          IMAGE_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to find image with any expected tag"
+          exit 1
+        fi
+        
+        echo "Using image tag: ${IMAGE_TAG}"
+        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
