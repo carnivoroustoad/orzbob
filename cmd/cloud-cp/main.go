@@ -65,6 +65,11 @@ type Server struct {
 	heartbeatMu  sync.RWMutex
 	tokenManager *auth.TokenManager
 	baseURL      string
+	
+	// Quota tracking: orgID -> instance count
+	instanceCounts map[string]int
+	quotaMu        sync.RWMutex
+	freeQuota      int // Max instances for free tier
 }
 
 // NewServer creates a new control plane server
@@ -76,12 +81,14 @@ func NewServer(p provider.Provider) *Server {
 	}
 
 	s := &Server{
-		provider:     p,
-		router:       chi.NewRouter(),
-		wsProxy:      tunnel.NewWSProxy(),
-		heartbeats:   make(map[string]time.Time),
-		tokenManager: tokenManager,
-		baseURL:      "http://localhost:8080", // Default, can be overridden
+		provider:       p,
+		router:         chi.NewRouter(),
+		wsProxy:        tunnel.NewWSProxy(),
+		heartbeats:     make(map[string]time.Time),
+		tokenManager:   tokenManager,
+		baseURL:        "http://localhost:8080", // Default, can be overridden
+		instanceCounts: make(map[string]int),
+		freeQuota:      2, // Free tier allows 2 instances
 	}
 	s.setupRoutes()
 	
@@ -232,6 +239,25 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Extract organization ID from context (would come from auth middleware in production)
+	// For now, use a default org for testing
+	orgID := r.Header.Get("X-Org-ID")
+	if orgID == "" {
+		orgID = "default-org"
+	}
+
+	// Check quota
+	s.quotaMu.Lock()
+	currentCount := s.instanceCounts[orgID]
+	if currentCount >= s.freeQuota {
+		s.quotaMu.Unlock()
+		writeError(w, http.StatusTooManyRequests, fmt.Sprintf("Quota exceeded: maximum %d instances allowed for free tier", s.freeQuota))
+		return
+	}
+	// Increment count optimistically
+	s.instanceCounts[orgID] = currentCount + 1
+	s.quotaMu.Unlock()
+
 	// Default tier if not specified
 	tier := req.Tier
 	if tier == "" {
@@ -241,10 +267,18 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	// Create instance using provider
 	instance, err := s.provider.CreateInstanceWithSecrets(r.Context(), tier, req.Secrets)
 	if err != nil {
+		// Rollback quota increment on failure
+		s.quotaMu.Lock()
+		s.instanceCounts[orgID]--
+		s.quotaMu.Unlock()
+		
 		log.Printf("Failed to create instance: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to create instance")
 		return
 	}
+	
+	// Store org ID in instance metadata for deletion tracking
+	instance.Labels["org-id"] = orgID
 
 	// Generate JWT token for attachment (valid for 2 minutes)
 	token, err := s.tokenManager.GenerateToken(instance.ID, 2*time.Minute)
@@ -293,9 +327,26 @@ func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	
-	if err := s.provider.DeleteInstance(r.Context(), id); err != nil {
+	// Get instance to find org ID
+	instance, err := s.provider.GetInstance(r.Context(), id)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "Instance not found")
 		return
+	}
+	
+	// Delete the instance
+	if err := s.provider.DeleteInstance(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to delete instance")
+		return
+	}
+	
+	// Decrement quota count
+	if orgID, ok := instance.Labels["org-id"]; ok && orgID != "" {
+		s.quotaMu.Lock()
+		if count, exists := s.instanceCounts[orgID]; exists && count > 0 {
+			s.instanceCounts[orgID]--
+		}
+		s.quotaMu.Unlock()
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -394,9 +445,10 @@ func (s *Server) reapIdleInstances() {
 		return
 	}
 
+	// Collect instances to delete to avoid holding lock during deletion
+	toDelete := []provider.Instance{}
+	
 	s.heartbeatMu.RLock()
-	defer s.heartbeatMu.RUnlock()
-
 	for _, instance := range instances {
 		lastHeartbeat, exists := s.heartbeats[instance.ID]
 		
@@ -407,14 +459,31 @@ func (s *Server) reapIdleInstances() {
 
 		// Check if idle
 		if now.Sub(lastHeartbeat) > idleTimeout {
-			log.Printf("Reaping idle instance %s (last heartbeat: %v)", instance.ID, lastHeartbeat)
+			toDelete = append(toDelete, *instance)
+		}
+	}
+	s.heartbeatMu.RUnlock()
+	
+	// Delete idle instances
+	for _, instance := range toDelete {
+		log.Printf("Reaping idle instance %s", instance.ID)
+		
+		// Delete the instance
+		if err := s.provider.DeleteInstance(ctx, instance.ID); err != nil {
+			log.Printf("Failed to delete idle instance %s: %v", instance.ID, err)
+		} else {
+			// Remove from heartbeat map
+			s.heartbeatMu.Lock()
+			delete(s.heartbeats, instance.ID)
+			s.heartbeatMu.Unlock()
 			
-			// Delete the instance
-			if err := s.provider.DeleteInstance(ctx, instance.ID); err != nil {
-				log.Printf("Failed to delete idle instance %s: %v", instance.ID, err)
-			} else {
-				// Remove from heartbeat map
-				delete(s.heartbeats, instance.ID)
+			// Decrement quota count
+			if orgID, ok := instance.Labels["org-id"]; ok && orgID != "" {
+				s.quotaMu.Lock()
+				if count, exists := s.instanceCounts[orgID]; exists && count > 0 {
+					s.instanceCounts[orgID]--
+				}
+				s.quotaMu.Unlock()
 			}
 		}
 	}

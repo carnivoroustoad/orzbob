@@ -42,11 +42,7 @@ var cloudAttachCmd = &cobra.Command{
 	Short: "Attach to a cloud runner instance",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		token, err := loadToken()
-		if err != nil {
-			return fmt.Errorf("not logged in, run 'orz login' first")
-		}
-
+		// We might not need OAuth token if using JWT URL
 		var wsURL string
 		var jwtToken string
 		

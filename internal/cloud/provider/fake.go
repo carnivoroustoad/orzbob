@@ -43,6 +43,7 @@ func (f *FakeProvider) CreateInstanceWithSecrets(ctx context.Context, tier strin
 		PodName:   id,
 		Namespace: "fake-namespace",
 		Secrets:   secrets,
+		Labels:    make(map[string]string),
 	}
 
 	f.instances[id] = instance

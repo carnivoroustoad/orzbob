@@ -95,6 +95,7 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 		PodName:   createdPod.Name,
 		Namespace: createdPod.Namespace,
 		Secrets:   secrets,
+		Labels:    createdPod.Labels,
 	}, nil
 }
 
@@ -112,6 +113,7 @@ func (k *LocalKind) GetInstance(ctx context.Context, id string) (*Instance, erro
 		CreatedAt: pod.CreationTimestamp.Time,
 		PodName:   pod.Name,
 		Namespace: pod.Namespace,
+		Labels:    pod.Labels,
 	}, nil
 }
 
@@ -133,6 +135,7 @@ func (k *LocalKind) ListInstances(ctx context.Context) ([]*Instance, error) {
 			CreatedAt: pod.CreationTimestamp.Time,
 			PodName:   pod.Name,
 			Namespace: pod.Namespace,
+			Labels:    pod.Labels,
 		})
 	}
 

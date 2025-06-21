@@ -13,7 +13,8 @@ type Instance struct {
 	CreatedAt time.Time
 	PodName   string
 	Namespace string
-	Secrets   []string // Names of secrets to mount
+	Secrets   []string          // Names of secrets to mount
+	Labels    map[string]string // Additional labels (e.g., org-id)
 }
 
 // Secret represents a Kubernetes secret
