@@ -290,7 +290,7 @@ jobs:
           sleep 5
           
           # Run smoke tests
-          go run hack/smoke.go
+          go run hack/smoke-api.go
           
           # Run integration tests
           go test -v -tags=e2e $(go list ./test/e2e/... | grep -v /hack)
