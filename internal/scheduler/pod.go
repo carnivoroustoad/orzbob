@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -107,11 +108,17 @@ func (b *PodSpecBuilder) buildVolumes() []corev1.Volume {
 
 // buildContainers creates the main container and any sidecar containers
 func (b *PodSpecBuilder) buildContainers() []corev1.Container {
+	// Set pull policy based on image
+	pullPolicy := corev1.PullIfNotPresent
+	if strings.Contains(b.config.Image, ":e2e") || strings.Contains(b.config.Image, ":dev") {
+		pullPolicy = corev1.PullNever
+	}
+	
 	containers := []corev1.Container{
 		{
 			Name:            "runner",
 			Image:           b.config.Image,
-			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullPolicy: pullPolicy,
 			Resources:       b.buildResourceRequirements(),
 			VolumeMounts:    b.buildVolumeMounts(),
 			Env:             b.buildEnvVars(),

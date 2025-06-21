@@ -41,6 +41,8 @@ spec:
           env:
             - name: RUNNER_IMAGE
               value: {{ .Values.config.runnerImage | default "runner:latest" }}
+            - name: CONTROL_PLANE_URL
+              value: "http://{{ include "orzbob-cp.fullname" . }}:{{ .Values.service.port }}"
           ports:
             - name: http
               containerPort: 8080
