@@ -264,10 +264,26 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	s.instanceCounts[orgID] = currentCount + 1
 	s.quotaMu.Unlock()
 
-	// Default tier if not specified
+	// Validate and default tier
 	tier := req.Tier
 	if tier == "" {
-		tier = "small"
+		writeError(w, http.StatusBadRequest, "Tier is required")
+		// Rollback quota increment
+		s.quotaMu.Lock()
+		s.instanceCounts[orgID]--
+		s.quotaMu.Unlock()
+		return
+	}
+	
+	// Validate tier is one of the allowed values
+	validTiers := map[string]bool{"small": true, "medium": true, "large": true}
+	if !validTiers[tier] {
+		writeError(w, http.StatusBadRequest, "Invalid tier. Must be one of: small, medium, large")
+		// Rollback quota increment
+		s.quotaMu.Lock()
+		s.instanceCounts[orgID]--
+		s.quotaMu.Unlock()
+		return
 	}
 
 	// Create instance using provider

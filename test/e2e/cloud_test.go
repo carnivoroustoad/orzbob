@@ -6,6 +6,7 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -43,7 +44,11 @@ func TestE2ECloudWorkflow(t *testing.T) {
 
 	t.Run("CreateInstance", func(t *testing.T) {
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-		resp, err := http.Post(baseURL+"/v1/instances", "application/json", reqBody)
+		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Org-ID", fmt.Sprintf("test-create-%d", time.Now().UnixNano()))
+		
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
