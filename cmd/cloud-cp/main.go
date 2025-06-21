@@ -536,12 +536,6 @@ func main() {
 	} else {
 		log.Println("RUNNER_IMAGE environment variable not set")
 	}
-	
-	// Debug: Log all environment variables
-	log.Println("DEBUG: All environment variables:")
-	for _, env := range os.Environ() {
-		log.Printf("  %s", env)
-	}
 
 	// Create provider
 	var p provider.Provider
