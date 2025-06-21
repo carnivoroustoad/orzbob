@@ -309,8 +309,8 @@ jobs:
       if: failure()
       run: |
         kubectl describe pods || echo "Unable to describe pods"
-        kubectl logs -l app=orzbob-cp --tail=100 || echo "No control plane logs found"
-        kubectl logs -l app=orzbob-agent --tail=100 || echo "No agent logs found"
+        kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=100 || echo "No control plane logs found"
+        kubectl logs -l app=orzbob-runner --tail=100 || echo "No agent logs found"
 
   # Job 6: Security scan
   security-scan:
