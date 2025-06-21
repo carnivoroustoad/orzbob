@@ -16,8 +16,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"orzbob/internal/auth"
 	"orzbob/internal/cloud/provider"
+	"orzbob/internal/metrics"
 	"orzbob/internal/tunnel"
 )
 
@@ -201,6 +203,9 @@ func (s *Server) setupRoutes() {
 
 	// Health check
 	s.router.Get("/health", s.handleHealth)
+	
+	// Metrics endpoint
+	s.router.Handle("/metrics", promhttp.Handler())
 
 	// API routes
 	s.router.Route("/v1", func(r chi.Router) {
@@ -251,6 +256,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	currentCount := s.instanceCounts[orgID]
 	if currentCount >= s.freeQuota {
 		s.quotaMu.Unlock()
+		metrics.QuotaExceeded.WithLabelValues(orgID).Inc()
 		writeError(w, http.StatusTooManyRequests, fmt.Sprintf("Quota exceeded: maximum %d instances allowed for free tier", s.freeQuota))
 		return
 	}
@@ -279,6 +285,9 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	
 	// Store org ID in instance metadata for deletion tracking
 	instance.Labels["org-id"] = orgID
+	
+	// Increment metrics
+	metrics.InstancesCreated.Inc()
 
 	// Generate JWT token for attachment (valid for 2 minutes)
 	token, err := s.tokenManager.GenerateToken(instance.ID, 2*time.Minute)
@@ -348,6 +357,9 @@ func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 		}
 		s.quotaMu.Unlock()
 	}
+	
+	// Increment metrics
+	metrics.InstancesDeleted.Inc()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -418,6 +430,9 @@ func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	s.heartbeatMu.Lock()
 	s.heartbeats[id] = time.Now()
 	s.heartbeatMu.Unlock()
+	
+	// Increment metrics
+	metrics.HeartbeatsReceived.Inc()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -485,6 +500,10 @@ func (s *Server) reapIdleInstances() {
 				}
 				s.quotaMu.Unlock()
 			}
+			
+			// Increment metrics
+			metrics.IdleInstancesReaped.Inc()
+			metrics.InstancesDeleted.Inc()
 		}
 	}
 }

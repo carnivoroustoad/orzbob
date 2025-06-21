@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"orzbob/internal/metrics"
 )
 
 var upgrader = websocket.Upgrader{
@@ -81,12 +82,18 @@ func (p *WSProxy) HandleAttach(instanceID string) http.HandlerFunc {
 		p.mu.Lock()
 		p.sessions[sessionID] = session
 		p.mu.Unlock()
+		
+		// Increment active sessions metric
+		metrics.ActiveSessions.Inc()
 
 		defer func() {
 			p.mu.Lock()
 			delete(p.sessions, sessionID)
 			p.mu.Unlock()
 			close(session.done)
+			
+			// Decrement active sessions metric
+			metrics.ActiveSessions.Dec()
 		}()
 
 		log.Printf("WebSocket session %s started for instance %s", sessionID, instanceID)
