@@ -1,15 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/websocket"
+	"orzbob/internal/auth"
 	"orzbob/internal/cloud/provider"
 )
 
@@ -216,5 +221,207 @@ func TestHeartbeatEndpoint(t *testing.T) {
 		if errResp.Error != "Instance not found" {
 			t.Errorf("Expected error 'Instance not found', got '%s'", errResp.Error)
 		}
+	}
+}
+
+func TestJWTAttachValidation(t *testing.T) {
+	// Create a server with fake provider
+	fp := provider.NewFakeProvider()
+	
+	// Create token manager
+	tm, err := auth.NewTokenManager("test-control-plane")
+	if err != nil {
+		t.Fatalf("Failed to create token manager: %v", err)
+	}
+	
+	server := &Server{
+		provider:     fp,
+		tokenManager: tm,
+		router:       chi.NewRouter(),
+		heartbeats:   make(map[string]time.Time),
+	}
+	server.setupRoutes()
+	
+	// Start test server
+	ts := httptest.NewServer(server.router)
+	defer ts.Close()
+	
+	// Update server base URL to match test server
+	server.baseURL = ts.URL
+	
+	// Create an instance
+	reqBody := bytes.NewBufferString(`{"tier": "small"}`)
+	resp, err := http.Post(ts.URL+"/v1/instances", "application/json", reqBody)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	var createResp CreateInstanceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&createResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	
+	// Extract JWT token from attach URL
+	attachURL := createResp.AttachURL
+	if !strings.Contains(attachURL, "?token=") {
+		t.Fatal("Attach URL does not contain JWT token")
+	}
+	
+	// Convert HTTP URL to WebSocket URL
+	wsURL := strings.Replace(attachURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, ts.URL, strings.Replace(ts.URL, "http://", "ws://", 1), 1)
+	
+	t.Run("ValidTokenAllowsConnection", func(t *testing.T) {
+		// Connect with the JWT token from the attach URL
+		conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			status := "nil response"
+			if resp != nil {
+				status = fmt.Sprintf("%d", resp.StatusCode)
+			}
+			t.Fatalf("Failed to connect with valid token: %v (status: %v)", err, status)
+		}
+		defer conn.Close()
+	})
+	
+	t.Run("NoTokenReturns401", func(t *testing.T) {
+		// Try to connect without token
+		urlWithoutToken := strings.Split(wsURL, "?")[0]
+		_, resp, err := websocket.DefaultDialer.Dial(urlWithoutToken, nil)
+		
+		if err == nil {
+			t.Fatal("Expected connection to fail without token")
+		}
+		
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Expected 401, got %d", resp.StatusCode)
+		}
+	})
+	
+	t.Run("InvalidTokenReturns401", func(t *testing.T) {
+		// Try to connect with invalid token
+		urlWithInvalidToken := strings.Split(wsURL, "?")[0] + "?token=invalid.token.here"
+		_, resp, err := websocket.DefaultDialer.Dial(urlWithInvalidToken, nil)
+		
+		if err == nil {
+			t.Fatal("Expected connection to fail with invalid token")
+		}
+		
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Expected 401, got %d", resp.StatusCode)
+		}
+	})
+	
+	t.Run("WrongInstanceTokenReturns403", func(t *testing.T) {
+		// Generate a token for a different instance
+		wrongToken, err := tm.GenerateToken("different-instance", 5*time.Minute)
+		if err != nil {
+			t.Fatalf("Failed to generate token: %v", err)
+		}
+		
+		// Try to connect with wrong instance token
+		urlWithWrongToken := strings.Split(wsURL, "?")[0] + "?token=" + wrongToken
+		_, resp, err := websocket.DefaultDialer.Dial(urlWithWrongToken, nil)
+		
+		if err == nil {
+			t.Fatal("Expected connection to fail with wrong instance token")
+		}
+		
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("Expected 403, got %d", resp.StatusCode)
+		}
+	})
+	
+	t.Run("ExpiredTokenReturns401", func(t *testing.T) {
+		// Generate an expired token for the correct instance
+		expiredToken, err := tm.GenerateToken(createResp.ID, -1*time.Hour)
+		if err != nil {
+			t.Fatalf("Failed to generate token: %v", err)
+		}
+		
+		// Try to connect with expired token
+		urlWithExpiredToken := strings.Split(wsURL, "?")[0] + "?token=" + expiredToken
+		_, resp, err := websocket.DefaultDialer.Dial(urlWithExpiredToken, nil)
+		
+		if err == nil {
+			t.Fatal("Expected connection to fail with expired token")
+		}
+		
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Expected 401, got %d", resp.StatusCode)
+		}
+	})
+}
+
+func TestInstanceCreationWithJWT(t *testing.T) {
+	// Create a server with fake provider
+	fp := provider.NewFakeProvider()
+	
+	// Create token manager
+	tm, err := auth.NewTokenManager("test-control-plane")
+	if err != nil {
+		t.Fatalf("Failed to create token manager: %v", err)
+	}
+	
+	server := &Server{
+		provider:     fp,
+		tokenManager: tm,
+		router:       chi.NewRouter(),
+		heartbeats:   make(map[string]time.Time),
+	}
+	server.setupRoutes()
+	
+	// Start test server
+	ts := httptest.NewServer(server.router)
+	defer ts.Close()
+	
+	// Update server base URL to match test server
+	server.baseURL = ts.URL
+	
+	// Create an instance
+	reqBody := bytes.NewBufferString(`{"tier": "small"}`)
+	resp, err := http.Post(ts.URL+"/v1/instances", "application/json", reqBody)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d", resp.StatusCode)
+	}
+	
+	var createResp CreateInstanceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&createResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	
+	// Verify attach URL contains JWT token
+	if !strings.Contains(createResp.AttachURL, "?token=") {
+		t.Fatal("Attach URL does not contain JWT token")
+	}
+	
+	// Extract and validate the token
+	parts := strings.Split(createResp.AttachURL, "?token=")
+	if len(parts) != 2 {
+		t.Fatal("Invalid attach URL format")
+	}
+	
+	token := parts[1]
+	claims, err := tm.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("Failed to validate token from attach URL: %v", err)
+	}
+	
+	// Verify token is for the correct instance
+	if claims.InstanceID != createResp.ID {
+		t.Errorf("Token instance ID mismatch: expected %s, got %s", createResp.ID, claims.InstanceID)
+	}
+	
+	// Verify token expires in approximately 2 minutes
+	expectedExpiry := time.Now().Add(2 * time.Minute)
+	diff := claims.ExpiresAt.Time.Sub(expectedExpiry).Abs()
+	if diff > 5*time.Second {
+		t.Errorf("Token expiry time off by %v", diff)
 	}
 }

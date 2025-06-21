@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"orzbob/internal/auth"
 	"orzbob/internal/cloud/provider"
 	"orzbob/internal/tunnel"
 )
@@ -56,20 +58,30 @@ type ErrorResponse struct {
 
 // Server represents the control plane server
 type Server struct {
-	provider    provider.Provider
-	router      chi.Router
-	wsProxy     *tunnel.WSProxy
-	heartbeats  map[string]time.Time
-	heartbeatMu sync.RWMutex
+	provider     provider.Provider
+	router       chi.Router
+	wsProxy      *tunnel.WSProxy
+	heartbeats   map[string]time.Time
+	heartbeatMu  sync.RWMutex
+	tokenManager *auth.TokenManager
+	baseURL      string
 }
 
 // NewServer creates a new control plane server
 func NewServer(p provider.Provider) *Server {
+	// Create token manager
+	tokenManager, err := auth.NewTokenManager("orzbob-cloud")
+	if err != nil {
+		log.Fatalf("Failed to create token manager: %v", err)
+	}
+
 	s := &Server{
-		provider:   p,
-		router:     chi.NewRouter(),
-		wsProxy:    tunnel.NewWSProxy(),
-		heartbeats: make(map[string]time.Time),
+		provider:     p,
+		router:       chi.NewRouter(),
+		wsProxy:      tunnel.NewWSProxy(),
+		heartbeats:   make(map[string]time.Time),
+		tokenManager: tokenManager,
+		baseURL:      "http://localhost:8080", // Default, can be overridden
 	}
 	s.setupRoutes()
 	
@@ -234,12 +246,21 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get attach URL
-	attachURL, err := s.provider.GetAttachURL(r.Context(), instance.ID)
+	// Generate JWT token for attachment (valid for 2 minutes)
+	token, err := s.tokenManager.GenerateToken(instance.ID, 2*time.Minute)
 	if err != nil {
-		log.Printf("Failed to get attach URL: %v", err)
-		attachURL = fmt.Sprintf("ws://localhost:8080/v1/instances/%s/attach", instance.ID)
+		log.Printf("Failed to generate token: %v", err)
+		writeError(w, http.StatusInternalServerError, "Failed to generate access token")
+		return
 	}
+
+	// Build attach URL with token
+	baseURL := s.baseURL
+	if baseURL == "" {
+		baseURL = "ws://localhost:8080"
+	}
+	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s", 
+		baseURL, instance.ID, url.QueryEscape(token))
 
 	// Return response
 	resp := CreateInstanceResponse{
@@ -298,8 +319,30 @@ func (s *Server) handleListInstances(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleWSAttach(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	
+	// Get token from query parameter
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "Missing authentication token")
+		return
+	}
+
+	// Validate token
+	claims, err := s.tokenManager.ValidateToken(token)
+	if err != nil {
+		log.Printf("Invalid token for instance %s: %v", id, err)
+		writeError(w, http.StatusUnauthorized, "Invalid or expired token")
+		return
+	}
+
+	// Verify token is for the requested instance
+	if claims.InstanceID != id {
+		log.Printf("Token instance mismatch: token for %s, requested %s", claims.InstanceID, id)
+		writeError(w, http.StatusForbidden, "Token not valid for this instance")
+		return
+	}
+	
 	// Verify instance exists
-	_, err := s.provider.GetInstance(r.Context(), id)
+	_, err = s.provider.GetInstance(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "Instance not found")
 		return

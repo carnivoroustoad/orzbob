@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -166,6 +167,36 @@ type Client struct {
 
 // NewClient creates a new WebSocket client
 func NewClient(url string) (*Client, error) {
+	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect: %w", err)
+	}
+
+	client := &Client{
+		conn: conn,
+		done: make(chan struct{}),
+	}
+
+	// Set up ping/pong
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
+	return client, nil
+}
+
+// NewClientWithToken creates a new WebSocket client with JWT token
+func NewClientWithToken(url string, token string) (*Client, error) {
+	// Add token to URL query parameters
+	if token != "" {
+		separator := "?"
+		if strings.Contains(url, "?") {
+			separator = "&"
+		}
+		url = fmt.Sprintf("%s%stoken=%s", url, separator, token)
+	}
+	
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)

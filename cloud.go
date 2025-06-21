@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -36,7 +38,7 @@ var cloudNewCmd = &cobra.Command{
 }
 
 var cloudAttachCmd = &cobra.Command{
-	Use:   "attach [instance-id]",
+	Use:   "attach [instance-id-or-url]",
 	Short: "Attach to a cloud runner instance",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,19 +47,48 @@ var cloudAttachCmd = &cobra.Command{
 			return fmt.Errorf("not logged in, run 'orz login' first")
 		}
 
-		instanceID := ""
+		var wsURL string
+		var jwtToken string
+		
 		if len(args) > 0 {
-			instanceID = args[0]
+			arg := args[0]
+			// Check if it's a full attach URL with JWT token
+			if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+				// Parse the URL to extract the token
+				parsedURL, err := url.Parse(arg)
+				if err != nil {
+					return fmt.Errorf("invalid URL: %w", err)
+				}
+				
+				// Extract JWT token from query params
+				jwtToken = parsedURL.Query().Get("token")
+				if jwtToken == "" {
+					return fmt.Errorf("no token found in attach URL")
+				}
+				
+				// Convert HTTP(S) to WebSocket URL
+				wsScheme := "ws"
+				if parsedURL.Scheme == "https" {
+					wsScheme = "wss"
+				}
+				parsedURL.Scheme = wsScheme
+				parsedURL.RawQuery = "" // Remove query params, we'll add token separately
+				wsURL = parsedURL.String()
+			} else {
+				// Treat as instance ID
+				instanceID := arg
+				wsURL = fmt.Sprintf("ws://localhost:8080/v1/instances/%s/attach", instanceID)
+				// For direct instance ID, we'll need to get a JWT token somehow
+				// For now, we'll pass empty token and let the server handle it
+				jwtToken = ""
+			}
 		} else {
-			// TODO: Get the most recent instance if not specified
-			return fmt.Errorf("instance ID required")
+			return fmt.Errorf("instance ID or attach URL required")
 		}
 
-		// Connect via WebSocket
-		url := fmt.Sprintf("ws://localhost:8080/v1/instances/%s/attach", instanceID)
-		fmt.Printf("Connecting to %s...\n", instanceID)
+		fmt.Printf("Connecting to %s...\n", wsURL)
 		
-		return attachToInstance(url, token)
+		return attachToInstance(wsURL, jwtToken)
 	},
 }
 
@@ -179,8 +210,8 @@ func init() {
 
 // attachToInstance connects to a cloud instance via WebSocket
 func attachToInstance(url string, token string) error {
-	// Create WebSocket client
-	client, err := tunnel.NewClient(url)
+	// Create WebSocket client with JWT token
+	client, err := tunnel.NewClientWithToken(url, token)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
