@@ -65,9 +65,9 @@ func TestPodSpecBuilder_Build(t *testing.T) {
 					t.Errorf("expected memory request 4Gi, got %v", memReq)
 				}
 
-				// Check volumes
-				if len(pod.Spec.Volumes) != 3 {
-					t.Errorf("expected 3 volumes, got %d", len(pod.Spec.Volumes))
+				// Check volumes (should be 2: workspace and cache)
+				if len(pod.Spec.Volumes) != 2 {
+					t.Errorf("expected 2 volumes, got %d", len(pod.Spec.Volumes))
 				}
 
 				// Check security context
