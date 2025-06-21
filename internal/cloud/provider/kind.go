@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -65,12 +66,18 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 	// Generate unique instance ID
 	instanceID := fmt.Sprintf("runner-%d", time.Now().Unix())
 	
+	// Get runner image from environment or use default
+	runnerImage := os.Getenv("RUNNER_IMAGE")
+	if runnerImage == "" {
+		runnerImage = "runner:dev"
+	}
+	
 	// Build pod configuration
 	podConfig := scheduler.PodConfig{
 		Name:        instanceID,
 		Namespace:   k.namespace,
 		Tier:        tier,
-		Image:       "runner:dev",
+		Image:       runnerImage,
 		RepoURL:     "https://github.com/carnivoroustoad/orzbob.git",
 		Branch:      "main",
 		CloudConfig: cloudConfig,

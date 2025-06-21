@@ -280,8 +280,8 @@ jobs:
         if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=orzbob-cp --timeout=120s; then
           echo "Control plane is ready"
           
-          # Port forward control plane
-          kubectl port-forward svc/orzbob-cp 8080:8080 &
+          # Port forward control plane (service port 80 -> local 8080)
+          kubectl port-forward svc/orzbob-cp 8080:80 &
           PF_PID=$!
           sleep 5
           

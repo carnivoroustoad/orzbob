@@ -53,6 +53,16 @@ func main() {
 		}
 		
 		fmt.Printf("Pod status: %s, waiting...\n", inst.Status)
+		
+		// If pending for too long, check pod events
+		if i > 5 && inst.Status == "Pending" {
+			cmd := exec.Command("kubectl", "describe", "pod", inst.PodName, "-n", inst.Namespace)
+			output, _ := cmd.CombinedOutput()
+			if i == 6 { // Only print once
+				fmt.Printf("Pod describe output:\n%s\n", output)
+			}
+		}
+		
 		time.Sleep(2 * time.Second)
 	}
 
