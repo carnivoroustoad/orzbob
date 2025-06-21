@@ -242,6 +242,10 @@ jobs:
         kind load docker-image orzbob/cloud-cp:e2e --name orzbob-e2e
         kind load docker-image orzbob/cloud-agent:e2e --name orzbob-e2e
 
+    - name: Create runner namespace
+      run: |
+        kubectl create namespace orzbob-runners || true
+
     - name: Install control plane
       run: |
         helm install orzbob-cp charts/cp \

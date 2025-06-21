@@ -21,9 +21,21 @@ type LocalKind struct {
 
 // NewLocalKind creates a new LocalKind provider
 func NewLocalKind(kubeconfig string) (*LocalKind, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+	var config *rest.Config
+	var err error
+	
+	if kubeconfig == "" {
+		// Try in-cluster config first
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build in-cluster config: %w", err)
+		}
+	} else {
+		// Use provided kubeconfig
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)

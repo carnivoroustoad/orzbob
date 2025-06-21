@@ -535,14 +535,15 @@ func main() {
 
 	switch providerType {
 	case "kind":
-		if kubeconfig == "" {
-			kubeconfig = os.Getenv("HOME") + "/.kube/config"
-		}
 		p, err = provider.NewLocalKind(kubeconfig)
 		if err != nil {
 			log.Fatalf("Failed to create kind provider: %v", err)
 		}
-		log.Printf("Using LocalKind provider with kubeconfig: %s", kubeconfig)
+		if kubeconfig == "" {
+			log.Println("Using LocalKind provider with in-cluster config")
+		} else {
+			log.Printf("Using LocalKind provider with kubeconfig: %s", kubeconfig)
+		}
 	case "fake":
 		p = provider.NewFakeProvider()
 		log.Println("Using fake provider")
