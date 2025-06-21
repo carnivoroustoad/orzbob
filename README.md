@@ -1,4 +1,4 @@
-# Orzbob [![GitHub Release](https://img.shields.io/github/v/release/carnivoroustoad/orzbob)](https://github.com/carnivoroustoad/orzbob/releases/latest)
+# Orzbob [![GitHub Release](https://img.shields.io/github/v/release/carnivoroustoad/orzbob)](https://github.com/carnivoroustoad/orzbob/releases/latest) [![Cloud CI/CD](https://github.com/carnivoroustoad/orzbob/actions/workflows/cloud-ci.yml/badge.svg)](https://github.com/carnivoroustoad/orzbob/actions/workflows/cloud-ci.yml)
 
 Orzbob is a terminal app that helps you become a 100x engineer by managing multiple [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex) (and other local agents including [Aider](https://github.com/Aider-AI/aider)) in separate workspaces, allowing you to work on multiple tasks simultaneously.
 

@@ -83,6 +83,10 @@ kind-down:
 		echo "Kind cluster 'orzbob-test' not found"; \
 	fi
 
-e2e-kind: kind-up
+e2e-kind: ## Run full e2e tests in kind
+	@echo "Running e2e tests in kind..."
+	./hack/e2e-kind.sh
+
+e2e-kind-quick: kind-up ## Run quick e2e tests in existing kind cluster
 	@echo "Running e2e tests..."
-	go test -v ./tests/e2e/... -tags=e2e
+	go test -v ./test/e2e/... -tags=e2e
