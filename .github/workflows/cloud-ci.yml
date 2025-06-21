@@ -121,6 +121,7 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=raw,value=latest,enable={{is_default_branch}}
           type=sha,prefix={{branch}}-
+          type=sha
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -259,10 +260,18 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Determine image tag
+      id: image-tag
+      run: |
+        BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
+        IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
+        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }}
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ steps.image-tag.outputs.tag }}
         format: 'sarif'
         output: 'trivy-results.sarif'
 
