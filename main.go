@@ -197,6 +197,8 @@ func init() {
 	rootCmd.AddCommand(resetCmd)
 	rootCmd.AddCommand(update.UpdateCmd)
 	rootCmd.AddCommand(update.AutoUpdateCmd)
+	rootCmd.AddCommand(cloudCmd)
+	rootCmd.AddCommand(loginCmd)
 }
 
 func main() {

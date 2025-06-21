@@ -1,0 +1,14 @@
+apiVersion: v2
+name: orzbob-cp
+description: Orzbob Cloud Control Plane
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - orzbob
+  - control-plane
+  - cloud
+home: https://github.com/carnivoroustoad/orzbob
+maintainers:
+  - name: Orzbob Team
+    email: support@orzbob.io

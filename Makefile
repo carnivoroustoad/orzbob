@@ -9,6 +9,14 @@ build:
 	go build -o bin/cloud-cp ./cmd/cloud-cp
 	go build -o bin/cloud-agent ./cmd/cloud-agent
 
+# Docker build targets
+.PHONY: docker-build docker-build-runner
+
+docker-build: docker-build-runner
+
+docker-build-runner:
+	docker build -f docker/runner.Dockerfile -t runner:dev .
+
 # Run tests
 test:
 	go test ./...
@@ -46,3 +54,35 @@ vet:
 .PHONY: fmt
 fmt:
 	go fmt ./...
+
+# Kind cluster management
+.PHONY: kind-up kind-down e2e-kind
+
+kind-up:
+	@if ! command -v kind &> /dev/null && ! test -f ~/go/bin/kind; then \
+		echo "Error: kind is not installed. Please install kind from https://kind.sigs.k8s.io/"; \
+		exit 1; \
+	fi
+	@KIND=$$(command -v kind || echo ~/go/bin/kind); \
+	if $$KIND get clusters | grep -q orzbob-test; then \
+		echo "Kind cluster 'orzbob-test' already exists"; \
+	else \
+		echo "Creating kind cluster 'orzbob-test'..."; \
+		$$KIND create cluster --name orzbob-test; \
+	fi
+	@echo "Creating namespace 'orzbob-runners'..."
+	@kubectl create namespace orzbob-runners --dry-run=client -o yaml | kubectl apply -f -
+	@echo "Kind cluster ready!"
+
+kind-down:
+	@KIND=$$(command -v kind || echo ~/go/bin/kind); \
+	if test -x "$$KIND" && $$KIND get clusters 2>/dev/null | grep -q orzbob-test; then \
+		echo "Deleting kind cluster 'orzbob-test'..."; \
+		$$KIND delete cluster --name orzbob-test; \
+	else \
+		echo "Kind cluster 'orzbob-test' not found"; \
+	fi
+
+e2e-kind: kind-up
+	@echo "Running e2e tests..."
+	go test -v ./tests/e2e/... -tags=e2e

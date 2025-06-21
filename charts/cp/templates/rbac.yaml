@@ -1,0 +1,25 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "orzbob-cp.fullname" . }}
+  labels:
+    {{- include "orzbob-cp.labels" . | nindent 4 }}
+rules:
+{{- toYaml .Values.rbac.rules | nindent 0 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "orzbob-cp.fullname" . }}
+  labels:
+    {{- include "orzbob-cp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "orzbob-cp.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "orzbob-cp.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
