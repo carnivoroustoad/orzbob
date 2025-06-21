@@ -272,22 +272,34 @@ jobs:
 
     - name: Run E2E tests
       run: |
+        # Check if control plane pod exists and is ready
+        echo "Checking for control plane pods..."
+        kubectl get pods -l app.kubernetes.io/name=orzbob-cp
+        
         # Wait for control plane to be ready
-        kubectl wait --for=condition=ready pod -l app=orzbob-cp --timeout=120s
-        
-        # Port forward control plane
-        kubectl port-forward svc/orzbob-cp 8080:8080 &
-        PF_PID=$!
-        sleep 5
-        
-        # Run smoke tests
-        go run hack/smoke.go
-        
-        # Run integration tests
-        go test -v -tags=e2e $(go list ./test/e2e/... | grep -v /hack)
-        
-        # Cleanup
-        kill $PF_PID || true
+        if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=orzbob-cp --timeout=120s; then
+          echo "Control plane is ready"
+          
+          # Port forward control plane
+          kubectl port-forward svc/orzbob-cp 8080:8080 &
+          PF_PID=$!
+          sleep 5
+          
+          # Run smoke tests
+          go run hack/smoke.go
+          
+          # Run integration tests
+          go test -v -tags=e2e $(go list ./test/e2e/... | grep -v /hack)
+          
+          # Cleanup
+          kill $PF_PID || true
+        else
+          echo "Control plane failed to become ready"
+          kubectl get pods
+          kubectl describe pods -l app.kubernetes.io/name=orzbob-cp
+          kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=100
+          exit 1
+        fi
 
     - name: Collect logs on failure
       if: failure()
