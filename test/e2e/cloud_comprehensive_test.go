@@ -16,6 +16,36 @@ import (
 	"time"
 )
 
+// Helper to create instance with unique org ID
+func createInstanceWithUniqueOrg(t *testing.T, tier string) (*CreateInstanceResponse, func()) {
+	req, _ := http.NewRequest("POST", baseURL+"/v1/instances", 
+		bytes.NewBufferString(fmt.Sprintf(`{"tier": "%s"}`, tier)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Org-ID", fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano()))
+	
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Failed to create instance: %d - %s", resp.StatusCode, body)
+	}
+	
+	var createResp CreateInstanceResponse
+	json.NewDecoder(resp.Body).Decode(&createResp)
+	
+	// Return cleanup function
+	cleanup := func() {
+		req, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+createResp.ID, nil)
+		http.DefaultClient.Do(req)
+	}
+	
+	return &createResp, cleanup
+}
+
 // TestE2EInstanceLifecycle tests the complete lifecycle of an instance
 func TestE2EInstanceLifecycle(t *testing.T) {
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
@@ -23,9 +53,12 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 	}
 
 	t.Run("FullInstanceLifecycle", func(t *testing.T) {
-		// Create instance
-		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-		resp, err := http.Post(baseURL+"/v1/instances", "application/json", reqBody)
+		// Create instance with unique org ID to avoid quota conflicts
+		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", bytes.NewBufferString(`{"tier": "small"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Org-ID", fmt.Sprintf("test-lifecycle-%d", time.Now().UnixNano()))
+		
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}

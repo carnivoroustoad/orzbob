@@ -65,8 +65,8 @@ func (k *LocalKind) CreateInstanceWithSecrets(ctx context.Context, tier string, 
 
 // CreateInstanceWithConfig creates a new pod with optional cloud config and secrets
 func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, cloudConfig *config.CloudConfig, secrets []string) (*Instance, error) {
-	// Generate unique instance ID
-	instanceID := fmt.Sprintf("runner-%d", time.Now().Unix())
+	// Generate unique instance ID with nanosecond precision to avoid collisions
+	instanceID := fmt.Sprintf("runner-%d", time.Now().UnixNano())
 	
 	// Get runner image from environment or use default
 	runnerImage := os.Getenv("RUNNER_IMAGE")
