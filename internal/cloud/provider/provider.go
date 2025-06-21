@@ -7,22 +7,22 @@ import (
 
 // Instance represents a cloud runner instance
 type Instance struct {
-	ID        string
-	Status    string
-	Tier      string
-	CreatedAt time.Time
-	PodName   string
-	Namespace string
-	Secrets   []string          // Names of secrets to mount
-	Labels    map[string]string // Additional labels (e.g., org-id)
+	ID        string            `json:"id"`
+	Status    string            `json:"status"`
+	Tier      string            `json:"tier"`
+	CreatedAt time.Time        `json:"created_at"`
+	PodName   string            `json:"pod_name"`
+	Namespace string            `json:"namespace"`
+	Secrets   []string          `json:"secrets,omitempty"`   // Names of secrets to mount
+	Labels    map[string]string `json:"labels,omitempty"`    // Additional labels (e.g., org-id)
 }
 
 // Secret represents a Kubernetes secret
 type Secret struct {
-	Name      string
-	Namespace string
-	Data      map[string]string
-	CreatedAt time.Time
+	Name      string            `json:"name"`
+	Namespace string            `json:"namespace"`
+	Data      map[string]string `json:"data"`
+	CreatedAt time.Time        `json:"created_at"`
 }
 
 // Provider defines the interface for cloud instance providers
