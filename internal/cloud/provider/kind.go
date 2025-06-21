@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -70,6 +71,9 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 	runnerImage := os.Getenv("RUNNER_IMAGE")
 	if runnerImage == "" {
 		runnerImage = "runner:dev"
+		log.Printf("DEBUG: RUNNER_IMAGE env var not set, using default: %s", runnerImage)
+	} else {
+		log.Printf("DEBUG: Using RUNNER_IMAGE from env: %s", runnerImage)
 	}
 	
 	// Build pod configuration
