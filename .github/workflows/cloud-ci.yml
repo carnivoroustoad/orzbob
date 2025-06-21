@@ -254,6 +254,10 @@ jobs:
 
     - name: Install control plane
       run: |
+        # Debug: Check what images are available in Kind
+        echo "Images loaded in Kind cluster:"
+        docker exec orzbob-e2e-control-plane crictl images
+        
         helm install orzbob-cp charts/cp \
           --set image.repository=orzbob/cloud-cp \
           --set image.tag=e2e \

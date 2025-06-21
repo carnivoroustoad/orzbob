@@ -528,6 +528,14 @@ func main() {
 	flag.Parse()
 
 	log.Printf("Starting Orzbob Cloud Control Plane v%s", version)
+	
+	// Log environment variables for debugging
+	runnerImage := os.Getenv("RUNNER_IMAGE")
+	if runnerImage != "" {
+		log.Printf("RUNNER_IMAGE environment variable: %s", runnerImage)
+	} else {
+		log.Println("RUNNER_IMAGE environment variable not set")
+	}
 
 	// Create provider
 	var p provider.Provider
