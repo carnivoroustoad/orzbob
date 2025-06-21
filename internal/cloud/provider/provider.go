@@ -13,22 +13,30 @@ type Instance struct {
 	CreatedAt time.Time
 	PodName   string
 	Namespace string
+	Secrets   []string // Names of secrets to mount
+}
+
+// Secret represents a Kubernetes secret
+type Secret struct {
+	Name      string
+	Namespace string
+	Data      map[string]string
+	CreatedAt time.Time
 }
 
 // Provider defines the interface for cloud instance providers
 type Provider interface {
-	// CreateInstance creates a new runner instance
+	// Instance management
 	CreateInstance(ctx context.Context, tier string) (*Instance, error)
-	
-	// GetInstance retrieves instance details
+	CreateInstanceWithSecrets(ctx context.Context, tier string, secrets []string) (*Instance, error)
 	GetInstance(ctx context.Context, id string) (*Instance, error)
-	
-	// ListInstances lists all instances
 	ListInstances(ctx context.Context) ([]*Instance, error)
-	
-	// DeleteInstance terminates an instance
 	DeleteInstance(ctx context.Context, id string) error
-	
-	// GetAttachURL returns a URL for attaching to the instance
 	GetAttachURL(ctx context.Context, id string) (string, error)
+	
+	// Secret management
+	CreateSecret(ctx context.Context, name string, data map[string]string) (*Secret, error)
+	GetSecret(ctx context.Context, name string) (*Secret, error)
+	ListSecrets(ctx context.Context) ([]*Secret, error)
+	DeleteSecret(ctx context.Context, name string) error
 }

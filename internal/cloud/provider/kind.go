@@ -39,23 +39,29 @@ func NewLocalKind(kubeconfig string) (*LocalKind, error) {
 
 // CreateInstance creates a new pod in the kind cluster
 func (k *LocalKind) CreateInstance(ctx context.Context, tier string) (*Instance, error) {
-	return k.CreateInstanceWithConfig(ctx, tier, nil)
+	return k.CreateInstanceWithSecrets(ctx, tier, nil)
 }
 
-// CreateInstanceWithConfig creates a new pod with optional cloud config
-func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, cloudConfig *config.CloudConfig) (*Instance, error) {
+// CreateInstanceWithSecrets creates a new pod with secrets
+func (k *LocalKind) CreateInstanceWithSecrets(ctx context.Context, tier string, secrets []string) (*Instance, error) {
+	return k.CreateInstanceWithConfig(ctx, tier, nil, secrets)
+}
+
+// CreateInstanceWithConfig creates a new pod with optional cloud config and secrets
+func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, cloudConfig *config.CloudConfig, secrets []string) (*Instance, error) {
 	// Generate unique instance ID
 	instanceID := fmt.Sprintf("runner-%d", time.Now().Unix())
 	
 	// Build pod configuration
 	podConfig := scheduler.PodConfig{
-		Name:      instanceID,
-		Namespace: k.namespace,
-		Tier:      tier,
-		Image:     "runner:dev",
-		RepoURL:   "https://github.com/carnivoroustoad/orzbob.git",
-		Branch:    "main",
+		Name:        instanceID,
+		Namespace:   k.namespace,
+		Tier:        tier,
+		Image:       "runner:dev",
+		RepoURL:     "https://github.com/carnivoroustoad/orzbob.git",
+		Branch:      "main",
 		CloudConfig: cloudConfig,
+		Secrets:     secrets,
 	}
 
 	// Use PodSpecBuilder to create the pod
@@ -88,6 +94,7 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 		CreatedAt: createdPod.CreationTimestamp.Time,
 		PodName:   createdPod.Name,
 		Namespace: createdPod.Namespace,
+		Secrets:   secrets,
 	}, nil
 }
 
@@ -147,4 +154,97 @@ func (k *LocalKind) DeleteInstance(ctx context.Context, id string) error {
 // GetAttachURL returns a fake URL for now
 func (k *LocalKind) GetAttachURL(ctx context.Context, id string) (string, error) {
 	return fmt.Sprintf("ws://localhost:8080/attach/%s", id), nil
+}
+
+// CreateSecret creates a Kubernetes secret
+func (k *LocalKind) CreateSecret(ctx context.Context, name string, data map[string]string) (*Secret, error) {
+	// Convert string data to byte data
+	byteData := make(map[string][]byte)
+	for key, value := range data {
+		byteData[key] = []byte(value)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: k.namespace,
+			Labels: map[string]string{
+				"app":     "orzbob",
+				"type":    "user-secret",
+				"managed": "true",
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: byteData,
+	}
+
+	createdSecret, err := k.clientset.CoreV1().Secrets(k.namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create secret: %w", err)
+	}
+
+	return &Secret{
+		Name:      createdSecret.Name,
+		Namespace: createdSecret.Namespace,
+		Data:      data,
+		CreatedAt: createdSecret.CreationTimestamp.Time,
+	}, nil
+}
+
+// GetSecret retrieves a Kubernetes secret
+func (k *LocalKind) GetSecret(ctx context.Context, name string) (*Secret, error) {
+	secret, err := k.clientset.CoreV1().Secrets(k.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret: %w", err)
+	}
+
+	// Convert byte data to string data
+	data := make(map[string]string)
+	for key, value := range secret.Data {
+		data[key] = string(value)
+	}
+
+	return &Secret{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+		Data:      data,
+		CreatedAt: secret.CreationTimestamp.Time,
+	}, nil
+}
+
+// ListSecrets lists all Kubernetes secrets managed by orzbob
+func (k *LocalKind) ListSecrets(ctx context.Context) ([]*Secret, error) {
+	secretList, err := k.clientset.CoreV1().Secrets(k.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=orzbob,type=user-secret",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	secrets := make([]*Secret, 0, len(secretList.Items))
+	for _, secret := range secretList.Items {
+		// Convert byte data to string data
+		data := make(map[string]string)
+		for key, value := range secret.Data {
+			data[key] = string(value)
+		}
+
+		secrets = append(secrets, &Secret{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+			Data:      data,
+			CreatedAt: secret.CreationTimestamp.Time,
+		})
+	}
+
+	return secrets, nil
+}
+
+// DeleteSecret deletes a Kubernetes secret
+func (k *LocalKind) DeleteSecret(ctx context.Context, name string) error {
+	err := k.clientset.CoreV1().Secrets(k.namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete secret: %w", err)
+	}
+	return nil
 }

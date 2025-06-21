@@ -115,6 +115,7 @@ func (b *PodSpecBuilder) buildContainers() []corev1.Container {
 			Resources:       b.buildResourceRequirements(),
 			VolumeMounts:    b.buildVolumeMounts(),
 			Env:             b.buildEnvVars(),
+			EnvFrom:         b.buildEnvFrom(),
 			Command:         []string{"/usr/local/bin/cloud-agent"},
 			Args:            []string{},
 			WorkingDir:      "/workspace",
@@ -341,6 +342,24 @@ func int64Ptr(i int64) *int64 {
 
 func intPtr(i int32) *int32 {
 	return &i
+}
+
+// buildEnvFrom creates envFrom entries for mounting secrets
+func (b *PodSpecBuilder) buildEnvFrom() []corev1.EnvFromSource {
+	var envFrom []corev1.EnvFromSource
+
+	// Add each secret as an envFrom source
+	for _, secretName := range b.config.Secrets {
+		envFrom = append(envFrom, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secretName,
+				},
+			},
+		})
+	}
+
+	return envFrom
 }
 
 // buildSidecarContainer creates a sidecar container from service config

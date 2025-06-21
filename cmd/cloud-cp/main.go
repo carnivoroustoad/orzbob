@@ -25,16 +25,28 @@ var (
 
 // API types
 type CreateInstanceRequest struct {
-	Tier    string `json:"tier,omitempty"`
-	Program string `json:"program,omitempty"`
-	RepoURL string `json:"repo_url,omitempty"`
-	Branch  string `json:"branch,omitempty"`
+	Tier    string   `json:"tier,omitempty"`
+	Program string   `json:"program,omitempty"`
+	RepoURL string   `json:"repo_url,omitempty"`
+	Branch  string   `json:"branch,omitempty"`
+	Secrets []string `json:"secrets,omitempty"`
 }
 
 type CreateInstanceResponse struct {
 	ID        string    `json:"id"`
 	Status    string    `json:"status"`
 	AttachURL string    `json:"attach_url"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateSecretRequest struct {
+	Name string            `json:"name"`
+	Data map[string]string `json:"data"`
+}
+
+type SecretResponse struct {
+	Name      string    `json:"name"`
+	Namespace string    `json:"namespace"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -67,6 +79,99 @@ func NewServer(p provider.Provider) *Server {
 	return s
 }
 
+// handleCreateSecret creates a new Kubernetes secret
+func (s *Server) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
+	var req CreateSecretRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "Secret name is required")
+		return
+	}
+	if len(req.Data) == 0 {
+		writeError(w, http.StatusBadRequest, "Secret data is required")
+		return
+	}
+
+	// Create secret in provider
+	secret, err := s.provider.CreateSecret(r.Context(), req.Name, req.Data)
+	if err != nil {
+		log.Printf("Failed to create secret: %v", err)
+		writeError(w, http.StatusInternalServerError, "Failed to create secret")
+		return
+	}
+
+	// Return response
+	resp := SecretResponse{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+		CreatedAt: secret.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// handleGetSecret retrieves a secret
+func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	
+	secret, err := s.provider.GetSecret(r.Context(), name)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "Secret not found")
+		return
+	}
+
+	resp := SecretResponse{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+		CreatedAt: secret.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// handleDeleteSecret deletes a secret
+func (s *Server) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	
+	if err := s.provider.DeleteSecret(r.Context(), name); err != nil {
+		writeError(w, http.StatusNotFound, "Secret not found")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleListSecrets lists all secrets
+func (s *Server) handleListSecrets(w http.ResponseWriter, r *http.Request) {
+	secrets, err := s.provider.ListSecrets(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to list secrets")
+		return
+	}
+
+	var resp []SecretResponse
+	for _, secret := range secrets {
+		resp = append(resp, SecretResponse{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+			CreatedAt: secret.CreatedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"secrets": resp,
+	})
+}
+
 // setupRoutes configures the HTTP routes
 func (s *Server) setupRoutes() {
 	s.router.Use(middleware.Logger)
@@ -80,12 +185,19 @@ func (s *Server) setupRoutes() {
 
 	// API routes
 	s.router.Route("/v1", func(r chi.Router) {
+		// Instance management
 		r.Post("/instances", s.handleCreateInstance)
 		r.Get("/instances/{id}", s.handleGetInstance)
 		r.Delete("/instances/{id}", s.handleDeleteInstance)
 		r.Get("/instances", s.handleListInstances)
 		r.Get("/instances/{id}/attach", s.handleWSAttach)
 		r.Post("/instances/{id}/heartbeat", s.handleHeartbeat)
+		
+		// Secrets management
+		r.Post("/secrets", s.handleCreateSecret)
+		r.Get("/secrets/{name}", s.handleGetSecret)
+		r.Delete("/secrets/{name}", s.handleDeleteSecret)
+		r.Get("/secrets", s.handleListSecrets)
 	})
 }
 
@@ -115,7 +227,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create instance using provider
-	instance, err := s.provider.CreateInstance(r.Context(), tier)
+	instance, err := s.provider.CreateInstanceWithSecrets(r.Context(), tier, req.Secrets)
 	if err != nil {
 		log.Printf("Failed to create instance: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to create instance")

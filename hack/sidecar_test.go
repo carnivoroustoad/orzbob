@@ -71,7 +71,7 @@ func main() {
 
 	// Create instance with sidecars
 	log.Println("Creating instance with postgres sidecar...")
-	instance, err := kind.CreateInstanceWithConfig(ctx, "small", cloudConfig)
+	instance, err := kind.CreateInstanceWithConfig(ctx, "small", cloudConfig, nil)
 	if err != nil {
 		log.Fatalf("Failed to create instance: %v", err)
 	}
