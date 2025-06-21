@@ -293,7 +293,7 @@ jobs:
           go run hack/smoke-api.go
           
           # Run integration tests
-          go test -v -tags=e2e $(go list ./test/e2e/... | grep -v /hack)
+          go test -v -tags=e2e ./test/e2e/...
           
           # Cleanup
           kill $PF_PID || true
