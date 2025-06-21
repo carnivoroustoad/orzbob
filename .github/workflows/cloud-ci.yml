@@ -197,16 +197,37 @@ jobs:
         IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
         
         echo "Pulling images with tag: ${IMAGE_TAG}"
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} || \
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }}
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} || \
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }}
+        
+        # Retry logic for pulling images (they may take time to be available)
+        for i in {1..10}; do
+          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG}; then
+            echo "Successfully pulled cloud-cp image"
+            break
+          elif [ $i -eq 10 ]; then
+            echo "Failed to pull cloud-cp image after 10 attempts"
+            exit 1
+          else
+            echo "Attempt $i failed, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
+        
+        for i in {1..10}; do
+          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG}; then
+            echo "Successfully pulled cloud-agent image"
+            break
+          elif [ $i -eq 10 ]; then
+            echo "Failed to pull cloud-agent image after 10 attempts"
+            exit 1
+          else
+            echo "Attempt $i failed, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
         
         # Tag them for kind
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} orzbob/cloud-cp:e2e || \
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ github.sha }} orzbob/cloud-cp:e2e
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} orzbob/cloud-agent:e2e || \
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${{ github.sha }} orzbob/cloud-agent:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG} orzbob/cloud-cp:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${IMAGE_TAG} orzbob/cloud-agent:e2e
         
         kind load docker-image orzbob/cloud-cp:e2e --name orzbob-e2e
         kind load docker-image orzbob/cloud-agent:e2e --name orzbob-e2e
@@ -267,6 +288,25 @@ jobs:
         BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
         IMAGE_TAG="${BRANCH_NAME}-${GITHUB_SHA::8}"
         echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+    - name: Wait for image availability
+      run: |
+        IMAGE_TAG="${{ steps.image-tag.outputs.tag }}"
+        echo "Waiting for image to be available: ${IMAGE_TAG}"
+        
+        # Retry logic for image availability
+        for i in {1..10}; do
+          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${IMAGE_TAG}; then
+            echo "Image is available"
+            break
+          elif [ $i -eq 10 ]; then
+            echo "Image not available after 10 attempts"
+            exit 1
+          else
+            echo "Attempt $i failed, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
