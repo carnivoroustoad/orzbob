@@ -125,15 +125,21 @@ jobs:
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
+      timeout-minutes: 20  # Add timeout to prevent hanging
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.dockerfile }}
-        platforms: linux/amd64,linux/arm64
+        # Only build multi-arch on main branch to speed up CI
+        platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        # Increase builder resources
+        build-args: |
+          BUILDKIT_STEP_LOG_MAX_SIZE=10000000
+          BUILDKIT_STEP_LOG_MAX_SPEED=10000000
 
   # Job 4: Helm lint
   helm-lint:

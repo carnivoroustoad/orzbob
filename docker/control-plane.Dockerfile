@@ -1,6 +1,9 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
+# Add target architecture for cross-compilation
+ARG TARGETARCH
+
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates
 
@@ -13,8 +16,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the control plane binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o cloud-cp ./cmd/cloud-cp
+# Build the control plane binary with verbose output
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
+    go build -v -ldflags="-w -s" -o cloud-cp ./cmd/cloud-cp
 
 # Final stage
 FROM alpine:3.19
