@@ -5,6 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"orzbob/internal/cloud/config"
 )
 
 func TestPodSpecBuilder_Build(t *testing.T) {
@@ -229,6 +230,170 @@ func TestGetTierResources(t *testing.T) {
 			}
 			if memory != tt.expectedMemory {
 				t.Errorf("expected memory %s, got %s", tt.expectedMemory, memory)
+			}
+		})
+	}
+}
+
+func TestPodSpecBuilder_WithSidecars(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        PodConfig
+		expectedCount int
+		checkSidecar  string
+	}{
+		{
+			name: "pod with postgres sidecar",
+			config: PodConfig{
+				Name:      "test-pod",
+				Namespace: "default",
+				Tier:      "small",
+				Image:     "runner:latest",
+				RepoURL:   "https://github.com/test/repo",
+				Branch:    "main",
+				CloudConfig: &config.CloudConfig{
+					Services: map[string]config.ServiceConfig{
+						"postgres": {
+							Image: "postgres:15",
+							Env: map[string]string{
+								"POSTGRES_PASSWORD": "secret",
+								"POSTGRES_DB":       "myapp",
+							},
+							Ports: []int{5432},
+							Health: config.HealthConfig{
+								Command:  []string{"pg_isready", "-U", "postgres"},
+								Interval: "10s",
+								Timeout:  "5s",
+								Retries:  5,
+							},
+						},
+					},
+				},
+			},
+			expectedCount: 2, // runner + postgres
+			checkSidecar:  "postgres",
+		},
+		{
+			name: "pod with redis sidecar",
+			config: PodConfig{
+				Name:      "test-pod",
+				Namespace: "default",
+				Tier:      "small",
+				Image:     "runner:latest",
+				RepoURL:   "https://github.com/test/repo",
+				Branch:    "main",
+				CloudConfig: &config.CloudConfig{
+					Services: map[string]config.ServiceConfig{
+						"redis": {
+							Image: "redis:7-alpine",
+							Ports: []int{6379},
+							Health: config.HealthConfig{
+								Command: []string{"redis-cli", "ping"},
+							},
+						},
+					},
+				},
+			},
+			expectedCount: 2, // runner + redis
+			checkSidecar:  "redis",
+		},
+		{
+			name: "pod with multiple sidecars",
+			config: PodConfig{
+				Name:      "test-pod",
+				Namespace: "default",
+				Tier:      "medium",
+				Image:     "runner:latest",
+				RepoURL:   "https://github.com/test/repo",
+				Branch:    "main",
+				CloudConfig: &config.CloudConfig{
+					Services: map[string]config.ServiceConfig{
+						"postgres": {
+							Image: "postgres:15",
+							Env: map[string]string{
+								"POSTGRES_PASSWORD": "secret",
+							},
+							Ports: []int{5432},
+						},
+						"redis": {
+							Image: "redis:7-alpine",
+							Ports: []int{6379},
+						},
+					},
+				},
+			},
+			expectedCount: 3, // runner + postgres + redis
+			checkSidecar:  "postgres",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := NewPodSpecBuilder(tt.config)
+			pod := builder.Build()
+
+			// Check container count
+			if len(pod.Spec.Containers) != tt.expectedCount {
+				t.Errorf("Expected %d containers, got %d", tt.expectedCount, len(pod.Spec.Containers))
+			}
+
+			// Find sidecar container
+			var sidecar *corev1.Container
+			for i := range pod.Spec.Containers {
+				if pod.Spec.Containers[i].Name == tt.checkSidecar {
+					sidecar = &pod.Spec.Containers[i]
+					break
+				}
+			}
+
+			if sidecar == nil {
+				t.Fatalf("Sidecar container %s not found", tt.checkSidecar)
+			}
+
+			// Verify sidecar properties
+			if tt.config.CloudConfig != nil {
+				serviceConfig := tt.config.CloudConfig.Services[tt.checkSidecar]
+				
+				// Check image
+				if sidecar.Image != serviceConfig.Image {
+					t.Errorf("Expected image %s, got %s", serviceConfig.Image, sidecar.Image)
+				}
+
+				// Check env vars
+				for k, v := range serviceConfig.Env {
+					found := false
+					for _, env := range sidecar.Env {
+						if env.Name == k && env.Value == v {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Environment variable %s=%s not found", k, v)
+					}
+				}
+
+				// Check ports
+				if len(serviceConfig.Ports) > 0 {
+					if len(sidecar.Ports) != len(serviceConfig.Ports) {
+						t.Errorf("Expected %d ports, got %d", len(serviceConfig.Ports), len(sidecar.Ports))
+					}
+				}
+
+				// Check health probe
+				if len(serviceConfig.Health.Command) > 0 {
+					if sidecar.LivenessProbe == nil {
+						t.Error("Expected liveness probe to be set")
+					}
+					if sidecar.ReadinessProbe == nil {
+						t.Error("Expected readiness probe to be set")
+					}
+				}
+
+				// Check resources
+				if sidecar.Resources.Requests == nil {
+					t.Error("Expected resource requests to be set")
+				}
 			}
 		})
 	}

@@ -1,0 +1,90 @@
+version: "1.0"
+
+# Setup scripts
+setup:
+  init: |
+    echo "🚀 Initializing development environment with sidecars..."
+    
+    # Wait for postgres to be ready
+    echo "Waiting for PostgreSQL..."
+    for i in {1..30}; do
+      if pg_isready -h localhost -U myuser 2>/dev/null; then
+        echo "✅ PostgreSQL is ready!"
+        break
+      fi
+      echo "Waiting... ($i/30)"
+      sleep 2
+    done
+    
+    # Wait for redis
+    echo "Waiting for Redis..."
+    for i in {1..30}; do
+      if redis-cli ping 2>/dev/null | grep -q PONG; then
+        echo "✅ Redis is ready!"
+        break
+      fi
+      echo "Waiting... ($i/30)"
+      sleep 2
+    done
+    
+    echo "✅ All services are ready!"
+    
+  onAttach: |
+    echo "👋 Welcome to your development environment!"
+    echo ""
+    echo "Available services:"
+    echo "  - PostgreSQL: localhost:5432 (user: myuser, db: myapp)"
+    echo "  - Redis: localhost:6379"
+    echo ""
+    echo "Connection examples:"
+    echo "  psql -h localhost -U myuser -d myapp"
+    echo "  redis-cli ping"
+
+# Sidecar services
+services:
+  postgres:
+    image: postgres:15-alpine
+    env:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: myapp
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports: [5432]
+    health:
+      command: ["pg_isready", "-U", "myuser"]
+      interval: "10s"
+      timeout: "5s"
+      retries: 5
+      
+  redis:
+    image: redis:7-alpine
+    ports: [6379]
+    health:
+      command: ["redis-cli", "ping"]
+      interval: "10s"
+      timeout: "3s"
+      retries: 3
+
+# Environment variables available to main container
+env:
+  # PostgreSQL connection
+  PGHOST: localhost
+  PGPORT: "5432"
+  PGUSER: myuser
+  PGPASSWORD: mysecretpassword
+  PGDATABASE: myapp
+  DATABASE_URL: "postgresql://myuser:mysecretpassword@localhost:5432/myapp"
+  
+  # Redis connection
+  REDIS_HOST: localhost
+  REDIS_PORT: "6379"
+  REDIS_URL: "redis://localhost:6379"
+  
+  # Application settings
+  NODE_ENV: development
+  DEBUG: "true"
+
+# Resource requirements
+resources:
+  cpu: "4"
+  memory: "8Gi"
