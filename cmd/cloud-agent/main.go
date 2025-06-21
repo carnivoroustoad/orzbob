@@ -9,8 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
+
+	"orzbob/internal/cloud/config"
 )
 
 var (
@@ -51,6 +54,12 @@ func main() {
 	if err := bootstrapRepository(); err != nil {
 		log.Printf("Warning: Failed to bootstrap repository: %v", err)
 		// Continue anyway - repo might already exist
+	}
+
+	// Load cloud config and run init script
+	if err := runInitScript(); err != nil {
+		log.Printf("Warning: Failed to run init script: %v", err)
+		// Continue anyway
 	}
 
 	// Start tmux session with program
@@ -257,4 +266,66 @@ func sendHeartbeat(client *http.Client, url string) {
 	} else {
 		log.Printf("Heartbeat sent successfully")
 	}
+}
+
+// runInitScript loads cloud config and executes the init script if not already done
+func runInitScript() error {
+	workDir := "/workspace"
+	initMarker := filepath.Join(workDir, ".orz", ".init_done")
+
+	// Check if init has already been run
+	if _, err := os.Stat(initMarker); err == nil {
+		log.Printf("Init script already executed, skipping")
+		return nil
+	}
+
+	// Load cloud config
+	cfg, err := config.LoadCloudConfig(workDir)
+	if err != nil {
+		return fmt.Errorf("failed to load cloud config: %w", err)
+	}
+
+	// Validate config
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid cloud config: %w", err)
+	}
+
+	// Run init script if present
+	if cfg.Setup.Init != "" {
+		log.Printf("Running init script...")
+		
+		// Create script file
+		scriptPath := "/tmp/init.sh"
+		if err := os.WriteFile(scriptPath, []byte(cfg.Setup.Init), 0755); err != nil {
+			return fmt.Errorf("failed to write init script: %w", err)
+		}
+
+		// Execute script
+		cmd := exec.Command("/bin/bash", scriptPath)
+		cmd.Dir = workDir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = os.Environ()
+
+		// Add cloud config env vars
+		for k, v := range cfg.Env {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("init script failed: %w", err)
+		}
+
+		log.Printf("Init script completed successfully")
+	}
+
+	// Create marker file
+	if err := os.MkdirAll(filepath.Dir(initMarker), 0755); err != nil {
+		return fmt.Errorf("failed to create .orz directory: %w", err)
+	}
+	if err := os.WriteFile(initMarker, []byte(time.Now().Format(time.RFC3339)), 0644); err != nil {
+		return fmt.Errorf("failed to create init marker: %w", err)
+	}
+
+	return nil
 }

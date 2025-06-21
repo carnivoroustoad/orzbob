@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 
 	"github.com/gorilla/websocket"
+	"orzbob/internal/cloud/config"
 )
 
 var upgrader = websocket.Upgrader{
@@ -46,6 +48,12 @@ func handleWebSocketAttach(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	log.Printf("WebSocket client connected from %s", r.RemoteAddr)
+
+	// Run onAttach script if configured
+	if err := runOnAttachScript(); err != nil {
+		log.Printf("Warning: Failed to run onAttach script: %v", err)
+		// Continue anyway
+	}
 
 	// Attach to tmux session
 	cmd := exec.Command("tmux", "attach-session", "-t", "orzbob")
@@ -133,4 +141,51 @@ func handleWebSocketAttach(w http.ResponseWriter, r *http.Request) {
 	cmd.Wait()
 
 	log.Printf("WebSocket client disconnected")
+}
+
+// runOnAttachScript executes the onAttach script from cloud config
+func runOnAttachScript() error {
+	workDir := "/workspace"
+
+	// Load cloud config
+	cfg, err := config.LoadCloudConfig(workDir)
+	if err != nil {
+		return fmt.Errorf("failed to load cloud config: %w", err)
+	}
+
+	// Run onAttach script if present
+	if cfg.Setup.OnAttach != "" {
+		log.Printf("Running onAttach script...")
+		
+		// Create script file
+		scriptPath := "/tmp/onattach.sh"
+		if err := os.WriteFile(scriptPath, []byte(cfg.Setup.OnAttach), 0755); err != nil {
+			return fmt.Errorf("failed to write onAttach script: %w", err)
+		}
+
+		// Execute script in tmux session
+		cmd := exec.Command("tmux", "send-keys", "-t", "orzbob", 
+			fmt.Sprintf("bash %s", scriptPath), "Enter")
+		if err := cmd.Run(); err != nil {
+			// Try running directly if tmux send fails
+			cmd = exec.Command("/bin/bash", scriptPath)
+			cmd.Dir = workDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Env = os.Environ()
+
+			// Add cloud config env vars
+			for k, v := range cfg.Env {
+				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+			}
+
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("onAttach script failed: %w", err)
+			}
+		}
+
+		log.Printf("OnAttach script completed")
+	}
+
+	return nil
 }

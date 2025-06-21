@@ -1,0 +1,62 @@
+version: "1.0"
+
+# Setup scripts that run in the cloud instance
+setup:
+  # Init script runs once when the instance is created
+  init: |
+    echo "🚀 Initializing Orzbob cloud environment..."
+    
+    # Create marker file for testing
+    touch /tmp/marker_init_done
+    
+    # Log initialization time
+    mkdir -p /workspace/.orz
+    echo "Initialized at $(date)" > /workspace/.orz/init_log.txt
+    
+    # Install any additional tools needed
+    # apt-get update && apt-get install -y vim
+    
+    echo "✅ Initialization complete!"
+  
+  # OnAttach script runs each time someone attaches to the instance
+  onAttach: |
+    echo "👋 Welcome to your Orzbob cloud instance!"
+    echo "📅 Current time: $(date)"
+    echo "💻 Instance ID: ${INSTANCE_ID:-unknown}"
+    echo ""
+    echo "Type 'orz' to see available commands."
+
+# Environment variables available to all processes
+env:
+  EDITOR: "vim"
+  NODE_ENV: "development"
+  DEBUG: "true"
+
+# Resource requirements for the main container
+resources:
+  cpu: "4"        # 4 CPU cores
+  memory: "8Gi"   # 8 GB RAM
+  gpu: 0          # No GPU needed
+
+# Sidecar services (to be implemented in C-13)
+services:
+  postgres:
+    image: postgres:15
+    env:
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: myapp
+    ports: [5432]
+    health:
+      command: ["pg_isready", "-U", "postgres"]
+      interval: "10s"
+      timeout: "5s"
+      retries: 5
+      
+  redis:
+    image: redis:7-alpine
+    ports: [6379]
+    health:
+      command: ["redis-cli", "ping"]
+      interval: "10s"
+      timeout: "3s"
+      retries: 3
