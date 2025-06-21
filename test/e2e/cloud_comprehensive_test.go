@@ -138,8 +138,8 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		}
 
 		// Send heartbeat
-		req, _ := http.NewRequest("POST", baseURL+"/v1/instances/"+instanceID+"/heartbeat", nil)
-		resp, err = http.DefaultClient.Do(req)
+		hbReq, _ := http.NewRequest("POST", baseURL+"/v1/instances/"+instanceID+"/heartbeat", nil)
+		resp, err = http.DefaultClient.Do(hbReq)
 		if err != nil {
 			t.Errorf("Failed to send heartbeat: %v", err)
 		} else {
@@ -150,8 +150,8 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		}
 
 		// Delete instance
-		req, _ = http.NewRequest("DELETE", baseURL+"/v1/instances/"+instanceID, nil)
-		resp, err = http.DefaultClient.Do(req)
+		delReq, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+instanceID, nil)
+		resp, err = http.DefaultClient.Do(delReq)
 		if err != nil {
 			t.Fatalf("Failed to delete instance: %v", err)
 		}
