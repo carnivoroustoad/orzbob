@@ -90,7 +90,7 @@ func NewServer(p provider.Provider) *Server {
 		tokenManager:   tokenManager,
 		baseURL:        "http://localhost:8080", // Default, can be overridden
 		instanceCounts: make(map[string]int),
-		freeQuota:      2, // Free tier allows 2 instances
+		freeQuota:      3, // Free tier allows 3 instances for testing
 	}
 	s.setupRoutes()
 	
