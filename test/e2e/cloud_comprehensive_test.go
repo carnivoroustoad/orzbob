@@ -369,16 +369,18 @@ func TestE2EIdleInstanceReaping(t *testing.T) {
 
 // TestE2EInvalidRequests tests error handling for various invalid requests
 func TestE2EInvalidRequests(t *testing.T) {
-	t.Skip("Temporarily skipping - tier validation working differently than expected")
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
 		t.Skip("Skipping e2e tests (set CI or RUN_E2E env var to run)")
 	}
 
+	orgID := fmt.Sprintf("test-invalid-%d", time.Now().UnixNano())
+	
 	tests := []struct {
 		name           string
 		method         string
 		path           string
 		body           string
+		headers        map[string]string
 		expectedStatus int
 	}{
 		{
@@ -386,6 +388,7 @@ func TestE2EInvalidRequests(t *testing.T) {
 			method:         "POST",
 			path:           "/v1/instances",
 			body:           `{"tier": "invalid"}`,
+			headers:        map[string]string{"X-Org-ID": orgID},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
@@ -393,6 +396,7 @@ func TestE2EInvalidRequests(t *testing.T) {
 			method:         "POST",
 			path:           "/v1/instances",
 			body:           `{}`,
+			headers:        map[string]string{"X-Org-ID": orgID},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
@@ -430,6 +434,10 @@ func TestE2EInvalidRequests(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 			} else {
 				req, _ = http.NewRequest(tt.method, baseURL+tt.path, nil)
+			}
+			
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
 			}
 			
 			resp, err := http.DefaultClient.Do(req)
@@ -559,7 +567,6 @@ func TestE2EAttachURLValidation(t *testing.T) {
 
 // TestE2EMetricsAccuracy tests that metrics accurately reflect operations
 func TestE2EMetricsAccuracy(t *testing.T) {
-	t.Skip("Temporarily skipping - metrics not incrementing properly")
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
 		t.Skip("Skipping e2e tests (set CI or RUN_E2E env var to run)")
 	}
@@ -591,9 +598,15 @@ func TestE2EMetricsAccuracy(t *testing.T) {
 
 		// Create and delete 3 instances
 		instanceIDs := []string{}
+		orgID := fmt.Sprintf("test-metrics-%d", time.Now().UnixNano())
+		
 		for i := 0; i < 3; i++ {
 			reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-			resp, _ := http.Post(baseURL+"/v1/instances", "application/json", reqBody)
+			req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Org-ID", orgID)
+			
+			resp, _ := http.DefaultClient.Do(req)
 			var createResp CreateInstanceResponse
 			json.NewDecoder(resp.Body).Decode(&createResp)
 			resp.Body.Close()
