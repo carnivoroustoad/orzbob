@@ -101,3 +101,11 @@ validate-cloud-config: ## Validate cloud.yaml configuration
 		echo "See examples/cloud.yaml for a template"; \
 		exit 1; \
 	fi
+
+security-scan: ## Run security scan for beta launch
+	@echo "Running security scan..."
+	@./hack/security-scan.sh
+
+launch-readiness: ## Check beta launch readiness
+	@echo "Checking launch readiness..."
+	@./hack/launch-readiness.sh

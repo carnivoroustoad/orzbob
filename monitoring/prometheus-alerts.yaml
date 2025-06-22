@@ -1,0 +1,178 @@
+groups:
+  - name: orzbob_cloud_alerts
+    interval: 30s
+    rules:
+      # Availability Alerts
+      - alert: ControlPlaneDown
+        expr: up{job="orzbob-cp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Orzbob Control Plane is down"
+          description: "The Orzbob control plane has been down for more than 1 minute."
+          runbook_url: "https://github.com/carnivoroustoad/orzbob/wiki/runbooks/control-plane-down"
+
+      - alert: HighErrorRate
+        expr: |
+          (sum(rate(orzbob_http_request_duration_seconds_count{status=~"5.."}[5m])) 
+           / sum(rate(orzbob_http_request_duration_seconds_count[5m]))) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          
+      - alert: SLOViolation_Availability
+        expr: |
+          (1 - (sum(rate(orzbob_http_request_duration_seconds_count{status=~"5.."}[30m])) 
+           / sum(rate(orzbob_http_request_duration_seconds_count[30m])))) < 0.995
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          slo: availability
+        annotations:
+          summary: "Availability SLO violation"
+          description: "Availability is {{ $value | humanizePercentage }} (SLO: 99.5%)"
+
+      # Performance Alerts
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.99, sum(rate(orzbob_http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P99 response time"
+          description: "P99 response time is {{ $value | humanizeDuration }} (threshold: 500ms)"
+          
+      - alert: SLOViolation_Latency
+        expr: |
+          histogram_quantile(0.99, sum(rate(orzbob_http_request_duration_seconds_bucket[30m])) by (le)) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+          slo: latency
+        annotations:
+          summary: "Latency SLO violation"
+          description: "P99 latency is {{ $value | humanizeDuration }} (SLO: 500ms)"
+
+      # Resource Alerts
+      - alert: HighMemoryUsage
+        expr: |
+          (container_memory_working_set_bytes{namespace="orzbob-system"} 
+           / container_spec_memory_limit_bytes{namespace="orzbob-system"}) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage in {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+
+      - alert: HighCPUUsage
+        expr: |
+          (rate(container_cpu_usage_seconds_total{namespace="orzbob-system"}[5m]) 
+           / container_spec_cpu_quota{namespace="orzbob-system"}) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage in {{ $labels.pod }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} of limit"
+
+      - alert: PersistentVolumeFull
+        expr: |
+          (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "PVC {{ $labels.persistentvolumeclaim }} is almost full"
+          description: "Volume is {{ $value | humanizePercentage }} full"
+
+      # Business Logic Alerts
+      - alert: NoInstancesCreated
+        expr: increase(orzbob_instances_created_total[1h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "No instances created in the last hour"
+          description: "No new instances have been created in the last hour. This might indicate a problem."
+
+      - alert: HighQuotaExceededRate
+        expr: rate(orzbob_quota_exceeded_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "High rate of quota exceeded attempts"
+          description: "Quota exceeded rate is {{ $value }} per second. Consider reaching out to affected users."
+
+      - alert: TooManyIdleInstances
+        expr: |
+          (sum(increase(orzbob_idle_instances_reaped_total[1h])) 
+           / sum(increase(orzbob_instances_created_total[1h]))) > 0.5
+        for: 1h
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "High idle instance rate"
+          description: "{{ $value | humanizePercentage }} of instances are being reaped as idle"
+
+      # Security Alerts
+      - alert: UnauthorizedAccessAttempts
+        expr: |
+          sum(rate(orzbob_http_request_duration_seconds_count{status="401"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High rate of unauthorized access attempts"
+          description: "Seeing {{ $value }} unauthorized attempts per second"
+
+      - alert: CertificateExpiringSoon
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate for {{ $labels.instance }} expires in {{ $value }} days"
+
+      # WebSocket Specific Alerts
+      - alert: WebSocketConnectionFailures
+        expr: |
+          rate(orzbob_websocket_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High WebSocket connection failure rate"
+          description: "WebSocket error rate is {{ $value }} per second"
+
+      - alert: NoActiveWebSocketSessions
+        expr: orzbob_active_sessions == 0
+        for: 30m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "No active WebSocket sessions"
+          description: "No users are currently attached to any instances"
