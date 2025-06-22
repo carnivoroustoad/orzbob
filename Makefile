@@ -90,3 +90,14 @@ e2e-kind: ## Run full e2e tests in kind
 e2e-kind-quick: kind-up ## Run quick e2e tests in existing kind cluster
 	@echo "Running e2e tests..."
 	go test -v ./test/e2e/... -tags=e2e
+
+validate-cloud-config: ## Validate cloud.yaml configuration
+	@if [ -f ".orz/cloud.yaml" ]; then \
+		go run hack/validate-cloud-config.go .orz/cloud.yaml; \
+	elif [ -f "cloud.yaml" ]; then \
+		go run hack/validate-cloud-config.go cloud.yaml; \
+	else \
+		echo "No cloud.yaml found. Create one at .orz/cloud.yaml"; \
+		echo "See examples/cloud.yaml for a template"; \
+		exit 1; \
+	fi

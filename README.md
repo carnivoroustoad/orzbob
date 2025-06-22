@@ -99,6 +99,128 @@ The menu at the bottom of the screen shows available commands:
 - `q` - Quit the application
 - `shift-↓/↑` - scroll in diff view
 
+## Orzbob Cloud (Beta) 🚀
+
+Run your AI coding sessions in the cloud with dedicated compute resources, persistent workspaces, and seamless collaboration.
+
+### Cloud Quick-Start
+
+1. **Sign up for free tier** (2 concurrent instances)
+   ```bash
+   orz cloud auth
+   ```
+
+2. **Create your first cloud instance**
+   ```bash
+   orz cloud new "Implement user authentication"
+   ```
+
+3. **List and attach to instances**
+   ```bash
+   # List all your cloud instances
+   orz cloud list
+   
+   # Attach to an instance
+   orz cloud attach <instance-id>
+   ```
+
+4. **Clean up when done**
+   ```bash
+   orz cloud kill <instance-id>
+   ```
+
+📚 **[Full Cloud Quick-Start Guide](./docs/cloud-quickstart.md)** - Get up and running in under 15 minutes
+
+### Cloud Features
+
+- **Persistent Workspaces**: Your code, environment, and AI conversation history persist between sessions
+- **Resource Tiers**: Choose from small (2 CPU, 4GB), medium (4 CPU, 8GB), or large (8 CPU, 16GB) instances
+- **Sidecar Services**: Run databases and other services alongside your coding environment
+- **Team Collaboration**: Share instances with team members (coming soon)
+- **Automatic Idle Cleanup**: Instances auto-terminate after 30 minutes of inactivity
+
+### Cloud Configuration
+
+Customize your cloud instances with `.orz/cloud.yaml` in your project:
+
+```yaml
+version: "1.0"
+
+# Setup scripts
+setup:
+  # Runs once when instance is created
+  init: |
+    echo "Setting up development environment..."
+    npm install
+    cp .env.example .env
+    
+  # Runs each time you attach
+  onAttach: |
+    echo "Welcome back! Here's the current status:"
+    git status
+    npm test -- --no-coverage
+
+# Sidecar services
+services:
+  postgres:
+    image: postgres:15
+    env:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: myapp
+    ports: [5432]
+    health:
+      command: ["pg_isready", "-U", "postgres"]
+      
+  redis:
+    image: redis:7
+    ports: [6379]
+    health:
+      command: ["redis-cli", "ping"]
+
+# Environment variables
+env:
+  DATABASE_URL: postgresql://postgres:secret@localhost:5432/myapp
+  REDIS_URL: redis://localhost:6379
+  NODE_ENV: development
+
+# Resource requirements (optional)
+resources:
+  cpu: "4"      # 4 CPU cores
+  memory: "8Gi"  # 8GB RAM
+```
+
+### Cloud Commands
+
+```bash
+# Authentication
+orz cloud auth              # Authenticate with Orzbob Cloud
+orz cloud logout            # Log out of Orzbob Cloud
+
+# Instance Management  
+orz cloud new [prompt]      # Create a new instance
+orz cloud list              # List all instances
+orz cloud attach <id>       # Attach to an instance
+orz cloud kill <id>         # Terminate an instance
+
+# Advanced Options
+orz cloud new --tier large  # Create a large instance
+orz cloud new --secrets     # Attach secrets to instance
+```
+
+### Pricing
+
+- **Free Tier**: 2 concurrent instances (small tier)
+- **Pro**: $29/month - 5 concurrent instances, all tiers
+- **Team**: $99/month - 20 concurrent instances, team features
+- **Enterprise**: Contact us for custom limits and features
+
+### Documentation
+
+- 🚀 **[Cloud Quick-Start Guide](./docs/cloud-quickstart.md)** - Get started in 15 minutes
+- 📖 **[Cloud Configuration Reference](./docs/cloud-config-reference.md)** - Complete cloud.yaml reference
+- 🔐 **[Using Secrets Guide](./examples/using-secrets.md)** - Manage sensitive data securely
+- 📦 **[Example Configurations](./examples/)** - Sample cloud.yaml files
+
 ### How It Works
 
 1. **tmux** to create isolated terminal sessions for each agent
