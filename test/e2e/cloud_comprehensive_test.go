@@ -48,7 +48,6 @@ func createInstanceWithUniqueOrg(t *testing.T, tier string) (*CreateInstanceResp
 
 // TestE2EInstanceLifecycle tests the complete lifecycle of an instance
 func TestE2EInstanceLifecycle(t *testing.T) {
-	t.Skip("Temporarily skipping - needs fixes for deletion and secrets")
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
 		t.Skip("Skipping e2e tests (set CI or RUN_E2E env var to run)")
 	}
@@ -144,8 +143,8 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to send heartbeat: %v", err)
 		} else {
-			if resp.StatusCode != http.StatusOK {
-				t.Errorf("Heartbeat failed with status: %d", resp.StatusCode)
+			if resp.StatusCode != http.StatusNoContent {
+				t.Errorf("Heartbeat failed with status: %d (expected 204)", resp.StatusCode)
 			}
 			resp.Body.Close()
 		}
@@ -161,6 +160,9 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		if resp.StatusCode != http.StatusNoContent {
 			t.Errorf("Expected 204 on delete, got %d", resp.StatusCode)
 		}
+
+		// Wait a moment for Kubernetes to process the deletion
+		time.Sleep(2 * time.Second)
 
 		// Verify instance is gone
 		resp, _ = http.Get(baseURL + "/v1/instances/" + instanceID)
