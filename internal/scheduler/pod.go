@@ -345,6 +345,8 @@ func getTierResources(tier string) (cpu, memory string) {
 		return "2", "4Gi"
 	case "medium":
 		return "4", "8Gi"
+	case "large":
+		return "8", "16Gi"
 	case "gpu":
 		return "8", "24Gi"
 	default:

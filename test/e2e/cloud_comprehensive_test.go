@@ -267,13 +267,24 @@ func TestE2ETierDifferences(t *testing.T) {
 
 	tiers := []string{"small", "medium", "large"}
 	instances := make(map[string]string) // tier -> instanceID
+	orgID := fmt.Sprintf("test-tier-%d", time.Now().UnixNano())
 
 	// Create instances of each tier
 	for _, tier := range tiers {
 		reqBody := bytes.NewBufferString(fmt.Sprintf(`{"tier": "%s"}`, tier))
-		resp, err := http.Post(baseURL+"/v1/instances", "application/json", reqBody)
+		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Org-ID", orgID)
+		
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create %s instance: %v", tier, err)
+		}
+		
+		if resp.StatusCode != http.StatusCreated {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			t.Fatalf("Failed to create %s instance: %d - %s", tier, resp.StatusCode, body)
 		}
 		
 		var createResp CreateInstanceResponse
@@ -296,8 +307,16 @@ func TestE2ETierDifferences(t *testing.T) {
 		// Wait for running
 		for i := 0; i < 15; i++ {
 			resp, _ := http.Get(baseURL + "/v1/instances/" + instanceID)
-			json.NewDecoder(resp.Body).Decode(&instance)
+			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
+			
+			// Decode from the body bytes
+			json.Unmarshal(body, &instance)
+			
+			// Log the raw response for debugging
+			if i == 0 {
+				t.Logf("Raw response for tier %s: %s", tier, string(body))
+			}
 			
 			if instance.Status == "Running" {
 				break
@@ -312,6 +331,14 @@ func TestE2ETierDifferences(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 			if err == nil {
 				t.Logf("%s tier pod resources: %s", tier, string(output))
+			}
+			
+			// Check pod labels for debugging
+			cmd = exec.Command("kubectl", "get", "pod", instance.PodName, "-n", instance.Namespace,
+				"-o", "jsonpath={.metadata.labels}")
+			output, err = cmd.CombinedOutput()
+			if err == nil {
+				t.Logf("%s tier pod labels: %s", tier, string(output))
 			}
 		}
 
