@@ -18,7 +18,6 @@ import (
 
 // TestE2EInstanceOperations tests core instance operations with proper isolation
 func TestE2EInstanceOperations(t *testing.T) {
-	t.Skip("Temporarily skipping - instance deletion and secrets need fixes")
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
 		t.Skip("Skipping e2e tests (set CI or RUN_E2E env var to run)")
 	}
@@ -111,7 +110,8 @@ func TestE2EInstanceOperations(t *testing.T) {
 			resp.Body.Close()
 		}
 		
-		// Verify deletion
+		// Verify deletion - wait a moment for Kubernetes to process
+		time.Sleep(2 * time.Second)
 		resp, _ = http.Get(baseURL + "/v1/instances/" + createResp.ID)
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("Expected 404 for deleted instance, got %d", resp.StatusCode)

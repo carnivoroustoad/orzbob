@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -131,6 +132,12 @@ func (k *LocalKind) GetInstance(ctx context.Context, id string) (*Instance, erro
 		return nil, fmt.Errorf("failed to get pod: %w", err)
 	}
 
+	// Get secrets from pod annotations
+	var secrets []string
+	if secretsStr, ok := pod.Annotations["orzbob.io/secrets"]; ok && secretsStr != "" {
+		secrets = strings.Split(secretsStr, ",")
+	}
+	
 	return &Instance{
 		ID:        id,
 		Status:    string(pod.Status.Phase),
@@ -138,6 +145,7 @@ func (k *LocalKind) GetInstance(ctx context.Context, id string) (*Instance, erro
 		CreatedAt: pod.CreationTimestamp.Time,
 		PodName:   pod.Name,
 		Namespace: pod.Namespace,
+		Secrets:   secrets,
 		Labels:    pod.Labels,
 	}, nil
 }
@@ -153,6 +161,12 @@ func (k *LocalKind) ListInstances(ctx context.Context) ([]*Instance, error) {
 
 	instances := make([]*Instance, 0, len(pods.Items))
 	for _, pod := range pods.Items {
+		// Get secrets from pod annotations
+		var secrets []string
+		if secretsStr, ok := pod.Annotations["orzbob.io/secrets"]; ok && secretsStr != "" {
+			secrets = strings.Split(secretsStr, ",")
+		}
+		
 		instances = append(instances, &Instance{
 			ID:        pod.Labels["id"],
 			Status:    string(pod.Status.Phase),
@@ -160,6 +174,7 @@ func (k *LocalKind) ListInstances(ctx context.Context) ([]*Instance, error) {
 			CreatedAt: pod.CreationTimestamp.Time,
 			PodName:   pod.Name,
 			Namespace: pod.Namespace,
+			Secrets:   secrets,
 			Labels:    pod.Labels,
 		})
 	}

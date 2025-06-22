@@ -52,6 +52,7 @@ func (b *PodSpecBuilder) Build() *corev1.Pod {
 				"type":    "runner",
 				"version": "v1",
 			},
+			Annotations: b.buildAnnotations(),
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -69,6 +70,18 @@ func (b *PodSpecBuilder) Build() *corev1.Pod {
 	pod.Spec.SecurityContext = b.buildPodSecurityContext()
 
 	return pod
+}
+
+// buildAnnotations creates pod annotations
+func (b *PodSpecBuilder) buildAnnotations() map[string]string {
+	annotations := make(map[string]string)
+	
+	// Store secrets list in annotations for retrieval
+	if len(b.config.Secrets) > 0 {
+		annotations["orzbob.io/secrets"] = strings.Join(b.config.Secrets, ",")
+	}
+	
+	return annotations
 }
 
 // buildVolumes creates the volume specifications
