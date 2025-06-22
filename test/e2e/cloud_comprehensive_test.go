@@ -554,7 +554,7 @@ func TestE2EAttachURLValidation(t *testing.T) {
 
 		// Try to access attach endpoint without token (should fail)
 		attachPath := fmt.Sprintf("/v1/instances/%s/attach", createResp.ID)
-		req, _ := http.NewRequest("GET", baseURL+attachPath, nil)
+		req, _ = http.NewRequest("GET", baseURL+attachPath, nil)
 		resp, err = http.DefaultClient.Do(req)
 		if err == nil {
 			if resp.StatusCode != http.StatusUnauthorized {
