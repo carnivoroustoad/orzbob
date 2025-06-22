@@ -518,15 +518,19 @@ func TestE2EConcurrentOperations(t *testing.T) {
 
 // TestE2EAttachURLValidation tests that attach URLs work correctly
 func TestE2EAttachURLValidation(t *testing.T) {
-	t.Skip("Temporarily skipping - attach URL not returned on quota exceeded")
 	if os.Getenv("CI") == "" && os.Getenv("RUN_E2E") == "" {
 		t.Skip("Skipping e2e tests (set CI or RUN_E2E env var to run)")
 	}
 
 	t.Run("AttachURLFormat", func(t *testing.T) {
-		// Create instance
+		// Create instance with unique org ID
+		orgID := fmt.Sprintf("test-attach-%d", time.Now().UnixNano())
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
-		resp, err := http.Post(baseURL+"/v1/instances", "application/json", reqBody)
+		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Org-ID", orgID)
+		
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
