@@ -135,8 +135,8 @@ func TestE2ECloudWorkflow(t *testing.T) {
 		// Create instances up to quota limit
 		var instances []string
 		
-		// Create 2 instances (quota limit)
-		for i := 0; i < 2; i++ {
+		// Create 3 instances (quota limit)
+		for i := 0; i < 3; i++ {
 			reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 			req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 			req.Header.Set("Content-Type", "application/json")
@@ -157,7 +157,7 @@ func TestE2ECloudWorkflow(t *testing.T) {
 			resp.Body.Close()
 		}
 		
-		// Try to create third instance (should fail)
+		// Try to create fourth instance (should fail)
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 		thirdReq, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		thirdReq.Header.Set("Content-Type", "application/json")

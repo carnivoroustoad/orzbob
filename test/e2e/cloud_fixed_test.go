@@ -123,8 +123,8 @@ func TestE2EInstanceOperations(t *testing.T) {
 		orgID := fmt.Sprintf("test-quota-%d", time.Now().UnixNano())
 		instances := []string{}
 		
-		// Create 2 instances (quota limit)
-		for i := 0; i < 2; i++ {
+		// Create 3 instances (quota limit)
+		for i := 0; i < 3; i++ {
 			reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 			req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 			req.Header.Set("Content-Type", "application/json")
@@ -147,7 +147,7 @@ func TestE2EInstanceOperations(t *testing.T) {
 			instances = append(instances, createResp.ID)
 		}
 		
-		// Try to create third instance (should fail)
+		// Try to create fourth instance (should fail)
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		req.Header.Set("Content-Type", "application/json")
