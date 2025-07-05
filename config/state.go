@@ -1,9 +1,9 @@
 package config
 
 import (
-	"orzbob/log"
 	"encoding/json"
 	"fmt"
+	"orzbob/log"
 	"os"
 	"path/filepath"
 )

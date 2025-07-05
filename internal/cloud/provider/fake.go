@@ -34,7 +34,7 @@ func (f *FakeProvider) CreateInstanceWithSecrets(ctx context.Context, tier strin
 
 	// Generate instance ID
 	id := fmt.Sprintf("runner-%d", time.Now().UnixNano())
-	
+
 	instance := &Instance{
 		ID:        id,
 		Status:    "Running",

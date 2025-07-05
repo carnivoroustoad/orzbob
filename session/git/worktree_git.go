@@ -1,8 +1,8 @@
 package git
 
 import (
-	"orzbob/log"
 	"fmt"
+	"orzbob/log"
 	"os/exec"
 	"strings"
 )

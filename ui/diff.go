@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"orzbob/session"
 	"fmt"
+	"orzbob/session"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"

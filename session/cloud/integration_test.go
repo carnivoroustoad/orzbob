@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
-	
+
 	"orzbob/session"
 )
 
@@ -14,31 +14,31 @@ func TestCloudManagerIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	manager := NewManager()
-	
+
 	// Test authentication check
 	if manager.IsAuthenticated() {
 		t.Log("Manager is authenticated")
 	} else {
 		t.Skip("Manager is not authenticated, skipping integration tests")
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Test listing instances
 	t.Run("ListInstances", func(t *testing.T) {
 		instances, err := manager.ListInstances(ctx)
 		if err != nil {
 			t.Fatalf("Failed to list instances: %v", err)
 		}
-		
+
 		t.Logf("Found %d cloud instances", len(instances))
 		for _, inst := range instances {
 			t.Logf("  - %s: %s (%s)", inst.ID, inst.Status, inst.Tier)
 		}
 	})
-	
+
 	// Test converting to session instances
 	t.Run("ConvertToSessionInstances", func(t *testing.T) {
 		cloudInstances := []CloudInstance{
@@ -50,13 +50,13 @@ func TestCloudManagerIntegration(t *testing.T) {
 				AttachURL: "wss://api.orzbob.com/v1/instances/test-cloud-123/attach",
 			},
 		}
-		
+
 		sessionInstances := ConvertToSessionInstances(cloudInstances)
-		
+
 		if len(sessionInstances) != 1 {
 			t.Fatalf("Expected 1 session instance, got %d", len(sessionInstances))
 		}
-		
+
 		inst := sessionInstances[0]
 		if !inst.IsCloud {
 			t.Error("Expected IsCloud to be true")
@@ -88,7 +88,7 @@ func TestCloudInstanceUI(t *testing.T) {
 		CloudStatus:     "Running",
 		CreatedAt:       time.Now(),
 	}
-	
+
 	// Test that cloud fields are preserved in serialization
 	data := cloudInst.ToInstanceData()
 	if !data.IsCloud {
@@ -107,6 +107,6 @@ func TestWebSocketTmuxIntegration(t *testing.T) {
 	// 2. Test WSAttach method
 	// 3. Test reconnection logic
 	// 4. Test terminal I/O over WebSocket
-	
+
 	t.Skip("WebSocket tmux integration test not implemented")
 }

@@ -75,35 +75,35 @@ func fetchBillingInfo(apiURL, token string) (*BillingInfo, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	
+
 	// Create request
 	req, err := http.NewRequest("GET", apiURL+"/v1/billing", nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Add auth header
 	req.Header.Set("Authorization", "Bearer "+token)
-	
+
 	// Make request
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	// Check status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
-	
+
 	// Parse response
 	var rawResp map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&rawResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	// Convert to BillingInfo
 	billingInfo := &BillingInfo{
 		Organization:   getString(rawResp, "organization"),
@@ -116,7 +116,7 @@ func fetchBillingInfo(apiURL, token string) (*BillingInfo, error) {
 		DailyUsage:     getString(rawResp, "daily_usage"),
 		ThrottleStatus: getString(rawResp, "throttle_status"),
 	}
-	
+
 	// Parse reset date
 	if resetStr := getString(rawResp, "reset_date"); resetStr != "" {
 		if t, err := time.Parse(time.RFC3339, resetStr); err == nil {
@@ -125,7 +125,7 @@ func fetchBillingInfo(apiURL, token string) (*BillingInfo, error) {
 			billingInfo.ResetDate = time.Now().AddDate(0, 1, 0) // Default to 1 month
 		}
 	}
-	
+
 	return billingInfo, nil
 }
 
@@ -166,41 +166,41 @@ func outputBillingTable(info *BillingInfo) error {
 	fmt.Fprintf(w, "Organization:\t%s\n", info.Organization)
 	fmt.Fprintf(w, "Plan:\t%s\n", info.Plan)
 	fmt.Fprintln(w)
-	
+
 	fmt.Fprintln(w, "USAGE")
 	fmt.Fprintln(w, "-----")
 	fmt.Fprintf(w, "Hours Used:\t%.1f / %.0f (%.0f%%)\n", info.HoursUsed, info.HoursIncluded, float64(info.PercentUsed))
-	
+
 	// Show usage bar
 	fmt.Fprint(w, "Progress:\t")
 	printUsageBar(w, info.PercentUsed)
 	fmt.Fprintln(w)
-	
+
 	if info.InOverage {
 		fmt.Fprintln(w, "Status:\t⚠️  IN OVERAGE - Additional charges apply")
 	} else {
 		fmt.Fprintln(w, "Status:\t✅ Within included hours")
 	}
-	
+
 	if info.DailyUsage != "" {
 		fmt.Fprintf(w, "Today's Usage:\t%s\n", info.DailyUsage)
 	}
-	
+
 	if info.ThrottleStatus != "" {
 		fmt.Fprintf(w, "Throttle Status:\t%s\n", info.ThrottleStatus)
 	}
-	
+
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "BILLING")
 	fmt.Fprintln(w, "-------")
 	fmt.Fprintf(w, "Estimated Bill:\t$%.2f\n", info.EstimatedBill)
-	fmt.Fprintf(w, "Resets On:\t%s (%d days)\n", 
+	fmt.Fprintf(w, "Resets On:\t%s (%d days)\n",
 		info.ResetDate.Format("Jan 2, 2006"),
 		int(time.Until(info.ResetDate).Hours()/24))
-	
+
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "For more details, visit: https://orzbob.cloud/billing")
-	
+
 	return nil
 }
 
@@ -210,7 +210,7 @@ func printUsageBar(w *tabwriter.Writer, percent int) {
 	if filled > barWidth {
 		filled = barWidth
 	}
-	
+
 	fmt.Fprint(w, "[")
 	for i := 0; i < barWidth; i++ {
 		if i < filled {

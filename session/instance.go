@@ -53,7 +53,7 @@ type Instance struct {
 	AutoYes bool
 	// Prompt is the initial prompt to pass to the instance on startup
 	Prompt string
-	
+
 	// Cloud instance fields
 	// IsCloud indicates if this is a cloud instance
 	IsCloud bool
@@ -137,7 +137,7 @@ func FromInstanceData(data InstanceData) (*Instance, error) {
 		AttachURL:       data.AttachURL,
 		CloudTier:       data.CloudTier,
 		CloudStatus:     data.CloudStatus,
-		Program:   data.Program,
+		Program:         data.Program,
 		gitWorktree: git.NewGitWorktreeFromStorage(
 			data.Worktree.RepoPath,
 			data.Worktree.WorktreePath,

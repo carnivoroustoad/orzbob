@@ -120,13 +120,13 @@ func main() {
 	// Step 8: Test CLI attach command with full URL
 	log.Println("\nTesting CLI attach with JWT URL...")
 	cmd := exec.Command("orz", "cloud", "attach", createResp.AttachURL)
-	
+
 	// Set up pipes for interaction
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		log.Printf("Failed to create stdin pipe: %v", err)
 	}
-	
+
 	_, err = cmd.StdoutPipe()
 	if err != nil {
 		log.Printf("Failed to create stdout pipe: %v", err)
@@ -137,13 +137,13 @@ func main() {
 		log.Printf("Failed to start CLI: %v", err)
 	} else {
 		log.Println("✅ CLI started successfully with JWT URL")
-		
+
 		// Send some test input
 		stdin.Write([]byte("test from CLI\n"))
-		
+
 		// Give it a moment to connect
 		time.Sleep(500 * time.Millisecond)
-		
+
 		// Kill the process
 		cmd.Process.Kill()
 		cmd.Wait()

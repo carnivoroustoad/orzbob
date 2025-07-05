@@ -45,12 +45,12 @@ func TestKindProvider(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get instance: %v", err)
 		}
-		
+
 		if runningInstance.Status == "Running" {
 			t.Logf("Pod is running!")
 			break
 		}
-		
+
 		t.Logf("Pod status: %s, waiting...", runningInstance.Status)
 		time.Sleep(1 * time.Second)
 	}
@@ -65,7 +65,7 @@ func TestKindProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to list instances: %v", err)
 	}
-	
+
 	found := false
 	for _, inst := range instances {
 		if inst.ID == instance.ID {

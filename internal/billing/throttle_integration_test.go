@@ -8,27 +8,27 @@ import (
 func TestThrottleControlPlaneIntegration(t *testing.T) {
 	// Create mock client and manager
 	mockClient := &MockPolarClient{}
-	
+
 	quotaEngine, _ := NewQuotaEngine(mockClient, NewMemoryQuotaPersistence())
 	throttleService := NewThrottleService(quotaEngine)
-	
+
 	manager := &Manager{
 		client:          mockClient,
 		quotaEngine:     quotaEngine,
 		throttleService: throttleService,
 	}
-	
+
 	// Create control plane integration
 	integration := NewControlPlaneIntegration(manager)
-	
+
 	// Test instance lifecycle
 	t.Run("instance lifecycle", func(t *testing.T) {
 		instanceID := "test-instance"
 		orgID := "test-org"
-		
+
 		// Create instance
 		integration.OnInstanceCreate(instanceID, orgID)
-		
+
 		// Check status (should not be paused)
 		paused, info := integration.GetInstanceThrottleStatus(instanceID)
 		if paused {
@@ -37,20 +37,20 @@ func TestThrottleControlPlaneIntegration(t *testing.T) {
 		if info != nil {
 			t.Error("Expected no pause info for running instance")
 		}
-		
+
 		// Send heartbeat
 		integration.OnHeartbeat(instanceID)
-		
+
 		// Delete instance
 		integration.OnInstanceDelete(instanceID)
-		
+
 		// Verify instance is no longer tracked
 		paused, _, _ = manager.GetThrottleService().GetInstanceStatus(instanceID)
 		if paused {
 			t.Error("Expected deleted instance to not be tracked")
 		}
 	})
-	
+
 	// Test pause info messages
 	t.Run("pause info messages", func(t *testing.T) {
 		tests := []struct {
@@ -74,7 +74,7 @@ func TestThrottleControlPlaneIntegration(t *testing.T) {
 				canResume:   true,
 			},
 		}
-		
+
 		for _, tt := range tests {
 			info := GetPauseInfo(tt.reason)
 			if info.Message != tt.expectedMsg {
@@ -85,11 +85,11 @@ func TestThrottleControlPlaneIntegration(t *testing.T) {
 			}
 		}
 	})
-	
+
 	// Test daily usage formatting
 	t.Run("daily usage formatting", func(t *testing.T) {
 		orgID := "test-org"
-		
+
 		// Set some daily usage
 		manager.GetThrottleService().mu.Lock()
 		today := time.Now().Format("2006-01-02")
@@ -98,7 +98,7 @@ func TestThrottleControlPlaneIntegration(t *testing.T) {
 		}
 		manager.GetThrottleService().orgDailyUsage[orgID][today] = 3*time.Hour + 45*time.Minute
 		manager.GetThrottleService().mu.Unlock()
-		
+
 		// Get formatted usage
 		usage := integration.GetOrgDailyUsage(orgID)
 		if usage != "3h 45m" {
@@ -133,23 +133,23 @@ func TestGetPauseInfo(t *testing.T) {
 			resumeAfter:   "anytime",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(string(tt.reason), func(t *testing.T) {
 			info := GetPauseInfo(tt.reason)
-			
+
 			if info.State != tt.expectedState {
 				t.Errorf("Expected state %s, got %s", tt.expectedState, info.State)
 			}
-			
+
 			if info.Reason != tt.reason {
 				t.Errorf("Expected reason %s, got %s", tt.reason, info.Reason)
 			}
-			
+
 			if info.CanResume != tt.canResume {
 				t.Errorf("Expected CanResume %v, got %v", tt.canResume, info.CanResume)
 			}
-			
+
 			if info.ResumeAfter != tt.resumeAfter {
 				t.Errorf("Expected ResumeAfter %q, got %q", tt.resumeAfter, info.ResumeAfter)
 			}

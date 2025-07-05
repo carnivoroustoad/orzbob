@@ -1,10 +1,10 @@
 package ui
 
 import (
-	"orzbob/log"
-	"orzbob/session"
 	"errors"
 	"fmt"
+	"orzbob/log"
+	"orzbob/session"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -146,12 +146,12 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 
 	// Cut the title if it's too long
 	titleText := i.Title
-	
+
 	// Add cloud icon if it's a cloud instance
 	if i.IsCloud {
 		titleText = cloudIcon + titleText
 	}
-	
+
 	widthAvail := r.width - 3 - len(prefix) - 1
 	if widthAvail > 0 && widthAvail < len(titleText) && len(titleText) >= widthAvail-3 {
 		titleText = titleText[:widthAvail-3] + "..."
@@ -196,7 +196,7 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 	remainingWidth -= diffWidth
 
 	branch := i.Branch
-	
+
 	// For cloud instances, show tier and status
 	if i.IsCloud {
 		branch = fmt.Sprintf("[%s]", i.CloudTier)

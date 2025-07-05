@@ -5,13 +5,13 @@ import (
 	"orzbob/config"
 	"orzbob/log"
 	"time"
-	
+
 	"github.com/spf13/cobra"
 )
 
 var (
 	forceFlag bool
-	
+
 	// UpdateCmd is the command for checking and applying updates
 	UpdateCmd = &cobra.Command{
 		Use:   "update",
@@ -19,27 +19,27 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log.Initialize(false)
 			defer log.Close()
-			
+
 			fmt.Println("Checking for updates...")
-			
+
 			release, hasUpdate, err := CheckForUpdates()
 			if err != nil {
 				return fmt.Errorf("failed to check for updates: %w", err)
 			}
-			
+
 			cfg := config.LoadConfig()
 			if err := config.UpdateLastUpdateCheck(cfg); err != nil {
 				log.ErrorLog.Printf("Failed to update last update check timestamp: %v", err)
 			}
-			
+
 			if !hasUpdate {
 				fmt.Printf("You're already running the latest version (v%s).\n", CurrentVersion)
 				return nil
 			}
-			
+
 			fmt.Printf("Update available: v%s → v%s\n", CurrentVersion, release.TagName[1:])
 			fmt.Printf("Release URL: %s\n", release.URL)
-			
+
 			if forceFlag || cfg.AutoInstallUpdates {
 				fmt.Println("Installing update...")
 				if err := DownloadAndInstall(release); err != nil {
@@ -48,14 +48,14 @@ var (
 				fmt.Println("Update successfully installed. Please restart the application.")
 				return nil
 			}
-			
+
 			fmt.Print("Do you want to install this update? [y/N]: ")
 			var response string
 			if _, err := fmt.Scanln(&response); err != nil {
 				// Treat error as "no" response
 				response = "N"
 			}
-			
+
 			if response == "y" || response == "Y" {
 				fmt.Println("Installing update...")
 				if err := DownloadAndInstall(release); err != nil {
@@ -65,11 +65,11 @@ var (
 			} else {
 				fmt.Println("Update skipped.")
 			}
-			
+
 			return nil
 		},
 	}
-	
+
 	// AutoUpdateCmd is a hidden command for automated update checks
 	AutoUpdateCmd = &cobra.Command{
 		Use:    "auto-update",
@@ -77,11 +77,11 @@ var (
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.LoadConfig()
-			
+
 			if !cfg.EnableAutoUpdate {
 				return nil
 			}
-			
+
 			// If last check was within 24 hours, skip
 			if cfg.LastUpdateCheck > 0 {
 				lastCheck := time.Unix(cfg.LastUpdateCheck, 0)
@@ -89,31 +89,31 @@ var (
 					return nil
 				}
 			}
-			
+
 			// Update the last check timestamp regardless of outcome
 			defer func() {
 				if err := config.UpdateLastUpdateCheck(cfg); err != nil {
 					log.ErrorLog.Printf("Failed to update last update check timestamp: %v", err)
 				}
 			}()
-			
+
 			release, hasUpdate, err := CheckForUpdates()
 			if err != nil {
 				log.ErrorLog.Printf("Auto-update check failed: %v", err)
 				return nil // Don't propagate auto-update errors
 			}
-			
+
 			if !hasUpdate {
 				return nil
 			}
-			
+
 			// If auto-install is enabled, install the update but NEVER restart automatically
 			if cfg.AutoInstallUpdates {
 				if err := DownloadAndInstall(release); err != nil {
 					log.ErrorLog.Printf("Auto-update installation failed: %v", err)
 					return nil
 				}
-				
+
 				// Notify the user about the successful update instead of restarting
 				fmt.Printf("\nUpdate installed: v%s → v%s\n", CurrentVersion, release.TagName[1:])
 				fmt.Printf("Please restart the application to use the new version.\n\n")
@@ -122,7 +122,7 @@ var (
 				fmt.Printf("\nUpdate available: v%s → v%s\n", CurrentVersion, release.TagName[1:])
 				fmt.Printf("Run 'orz update' to install the update.\n\n")
 			}
-			
+
 			return nil
 		},
 	}

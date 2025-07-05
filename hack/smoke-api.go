@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("Failed to reach control plane: %v", err)
 	}
 	resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("Control plane unhealthy: %d", resp.StatusCode)
 	}
@@ -76,20 +76,20 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to get instance: %v", err)
 		}
-		
+
 		if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
 			resp.Body.Close()
 			log.Fatalf("Failed to decode instance: %v", err)
 		}
 		resp.Body.Close()
-		
+
 		if instance.Status == "Running" {
 			fmt.Println("Pod is running!")
 			break
 		}
-		
+
 		fmt.Printf("Pod status: %s, waiting...\n", instance.Status)
-		
+
 		// If pending for too long, check pod events
 		if i > 5 && instance.Status == "Pending" {
 			cmd := exec.Command("kubectl", "describe", "pod", instance.PodName, "-n", instance.Namespace)
@@ -98,7 +98,7 @@ func main() {
 				fmt.Printf("Pod describe output:\n%s\n", output)
 			}
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
 
@@ -113,7 +113,7 @@ func main() {
 
 	// Check the image used
 	fmt.Println("\nChecking pod image...")
-	cmd := exec.Command("kubectl", "get", "pod", instance.PodName, "-n", instance.Namespace, 
+	cmd := exec.Command("kubectl", "get", "pod", instance.PodName, "-n", instance.Namespace,
 		"-o", "jsonpath={.spec.containers[0].image}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -9,9 +9,9 @@ import (
 func TestMeteringService_RecordUsage(t *testing.T) {
 	// Create mock config
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)
@@ -52,9 +52,9 @@ func TestMeteringService_RecordUsage(t *testing.T) {
 
 	// Verify conversions
 	expectedUsages := map[string]float64{
-		"cust-123": 2.0,  // 120 minutes = 2 hours
-		"cust-456": 1.0,  // 60 minutes = 1 hour
-		"cust-789": 0.5,  // 30 minutes = 0.5 hours
+		"cust-123": 2.0, // 120 minutes = 2 hours
+		"cust-456": 1.0, // 60 minutes = 1 hour
+		"cust-789": 0.5, // 30 minutes = 0.5 hours
 	}
 
 	for _, record := range records {
@@ -71,9 +71,9 @@ func TestMeteringService_RecordUsage(t *testing.T) {
 
 func TestMeteringService_Aggregation(t *testing.T) {
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)
@@ -126,9 +126,9 @@ func TestMeteringService_Aggregation(t *testing.T) {
 func TestBatchFlush(t *testing.T) {
 	// This test verifies the batch flush functionality required by B-3
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)
@@ -185,9 +185,9 @@ func TestBatchFlush(t *testing.T) {
 
 func TestMeteringService_QueueLimit(t *testing.T) {
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)
@@ -214,9 +214,9 @@ func TestMeteringService_QueueLimit(t *testing.T) {
 
 func TestMeteringService_ErrorHandling(t *testing.T) {
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)

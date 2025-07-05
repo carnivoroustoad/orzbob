@@ -120,7 +120,7 @@ func main() {
 		}
 
 		fmt.Printf("\nCreating product: %s\n", product.Name)
-		
+
 		body, err := json.Marshal(product)
 		if err != nil {
 			log.Printf("Failed to marshal product: %v", err)

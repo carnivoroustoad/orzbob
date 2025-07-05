@@ -98,7 +98,7 @@ func TestSidecarPodGeneration(t *testing.T) {
 				t.Error("Expected liveness probe for postgres")
 			} else {
 				if len(container.LivenessProbe.Exec.Command) != 3 {
-					t.Errorf("Expected 3 command args for health check, got %d", 
+					t.Errorf("Expected 3 command args for health check, got %d",
 						len(container.LivenessProbe.Exec.Command))
 				}
 			}

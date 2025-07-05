@@ -134,6 +134,6 @@ func TestPodWithSecretsAndEnvVars(t *testing.T) {
 		}
 	}
 
-	t.Logf("Pod successfully configured with %d env vars and %d secrets", 
+	t.Logf("Pod successfully configured with %d env vars and %d secrets",
 		len(runnerContainer.Env), len(runnerContainer.EnvFrom))
 }

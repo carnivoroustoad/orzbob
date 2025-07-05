@@ -75,12 +75,12 @@ func (b *PodSpecBuilder) Build() *corev1.Pod {
 // buildAnnotations creates pod annotations
 func (b *PodSpecBuilder) buildAnnotations() map[string]string {
 	annotations := make(map[string]string)
-	
+
 	// Store secrets list in annotations for retrieval
 	if len(b.config.Secrets) > 0 {
 		annotations["orzbob.io/secrets"] = strings.Join(b.config.Secrets, ",")
 	}
-	
+
 	return annotations
 }
 
@@ -94,7 +94,7 @@ func (b *PodSpecBuilder) buildVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: "cache", 
+			Name: "cache",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -126,7 +126,7 @@ func (b *PodSpecBuilder) buildContainers() []corev1.Container {
 	if strings.Contains(b.config.Image, ":e2e") || strings.Contains(b.config.Image, ":dev") {
 		pullPolicy = corev1.PullNever
 	}
-	
+
 	containers := []corev1.Container{
 		{
 			Name:            "runner",
@@ -244,7 +244,7 @@ func (b *PodSpecBuilder) buildEnvVars() []corev1.EnvVar {
 // buildResourceRequirements creates resource requirements based on tier
 func (b *PodSpecBuilder) buildResourceRequirements() corev1.ResourceRequirements {
 	cpu, memory := getTierResources(b.config.Tier)
-	
+
 	return corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse(cpu),

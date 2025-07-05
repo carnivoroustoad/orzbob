@@ -30,7 +30,7 @@ func GetPauseInfo(reason ThrottleReason) InstancePauseInfo {
 		Reason:    reason,
 		CanResume: true,
 	}
-	
+
 	switch reason {
 	case ThrottleReasonContinuousLimit:
 		info.Message = "Instance paused: Exceeded 8-hour continuous run limit"
@@ -46,7 +46,7 @@ func GetPauseInfo(reason ThrottleReason) InstancePauseInfo {
 		info.Message = "Instance paused"
 		info.ResumeAfter = "when limits reset"
 	}
-	
+
 	return info
 }
 
@@ -60,46 +60,46 @@ func NewControlPlaneIntegration(billingManager *Manager) *ControlPlaneIntegratio
 	integration := &ControlPlaneIntegration{
 		billingManager: billingManager,
 	}
-	
+
 	// Set the pause callback
 	billingManager.SetThrottlePauseCallback(integration.pauseInstance)
-	
+
 	return integration
 }
 
 // pauseInstance is called when an instance needs to be paused
 func (c *ControlPlaneIntegration) pauseInstance(instanceID string, reason ThrottleReason) error {
 	log.Printf("Pausing instance %s due to %s", instanceID, reason)
-	
+
 	// In a real implementation, this would:
 	// 1. Update instance state in database
 	// 2. Send pause command to the instance provider
 	// 3. Notify the user
 	// 4. Record metrics
-	
+
 	// Example pseudo-code:
 	/*
-	// Update database
-	err := db.UpdateInstanceState(instanceID, InstanceStatePaused, reason)
-	if err != nil {
-		return fmt.Errorf("failed to update instance state: %w", err)
-	}
-	
-	// Pause the actual instance
-	provider := getProvider(instanceID)
-	err = provider.PauseInstance(instanceID)
-	if err != nil {
-		return fmt.Errorf("failed to pause instance: %w", err)
-	}
-	
-	// Send notification
-	pauseInfo := GetPauseInfo(reason)
-	notifyUser(instanceID, pauseInfo)
-	
-	// Record metrics
-	metrics.InstancesPaused.WithLabelValues(string(reason)).Inc()
+		// Update database
+		err := db.UpdateInstanceState(instanceID, InstanceStatePaused, reason)
+		if err != nil {
+			return fmt.Errorf("failed to update instance state: %w", err)
+		}
+
+		// Pause the actual instance
+		provider := getProvider(instanceID)
+		err = provider.PauseInstance(instanceID)
+		if err != nil {
+			return fmt.Errorf("failed to pause instance: %w", err)
+		}
+
+		// Send notification
+		pauseInfo := GetPauseInfo(reason)
+		notifyUser(instanceID, pauseInfo)
+
+		// Record metrics
+		metrics.InstancesPaused.WithLabelValues(string(reason)).Inc()
 	*/
-	
+
 	return nil
 }
 

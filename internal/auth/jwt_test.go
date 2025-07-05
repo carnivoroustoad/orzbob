@@ -60,7 +60,7 @@ func TestTokenManager(t *testing.T) {
 
 	t.Run("ExpiredToken", func(t *testing.T) {
 		instanceID := "test-instance-456"
-		
+
 		// Generate token with negative duration (already expired)
 		token, err := tm.GenerateToken(instanceID, -1*time.Minute)
 		if err != nil {
@@ -227,7 +227,7 @@ func TestExpiredTokenReturns401(t *testing.T) {
 	// Try to connect with expired token
 	wsURL := strings.Replace(server.URL, "http://", "ws://", 1) + "/v1/instances/test-instance/attach?token=" + token
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	
+
 	// We expect an error due to 401
 	if err == nil {
 		t.Fatal("Expected connection to fail with expired token, but it succeeded")
@@ -295,7 +295,7 @@ func TestValidTokenAllowsConnection(t *testing.T) {
 	// Connect with valid token
 	wsURL := strings.Replace(server.URL, "http://", "ws://", 1) + "/v1/instances/test-instance/attach?token=" + token
 	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	
+
 	// Connection should succeed
 	if err != nil {
 		t.Fatalf("Failed to connect with valid token: %v (status: %v)", err, resp.StatusCode)

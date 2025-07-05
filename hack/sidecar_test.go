@@ -94,7 +94,7 @@ func main() {
 	log.Println("Waiting for pod to be running...")
 	namespace := "orzbob-runners"
 	var pod *corev1.Pod
-	
+
 	for i := 0; i < 60; i++ {
 		pod, err = clientset.CoreV1().Pods(namespace).Get(ctx, instanceID, metav1.GetOptions{})
 		if err != nil {
@@ -138,7 +138,7 @@ func main() {
 
 	// Test 1: Check if postgres is responding to health check
 	log.Println("\n--- Test 1: Postgres Health Check ---")
-	cmd := exec.Command("kubectl", "exec", instanceID, "-n", namespace, 
+	cmd := exec.Command("kubectl", "exec", instanceID, "-n", namespace,
 		"-c", "postgres", "--", "pg_isready", "-U", "testuser")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -150,7 +150,7 @@ func main() {
 	// Test 2: Install psql in runner container
 	log.Println("\n--- Test 2: Installing psql in runner container ---")
 	cmd = exec.Command("kubectl", "exec", instanceID, "-n", namespace,
-		"-c", "runner", "--", "sh", "-c", 
+		"-c", "runner", "--", "sh", "-c",
 		"apk add --no-cache postgresql-client")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
@@ -169,13 +169,13 @@ func main() {
 	// Test 3: Connect to postgres from runner container
 	log.Println("\n--- Test 3: Connecting to Postgres from Runner ---")
 	cmd = exec.Command("kubectl", "exec", instanceID, "-n", namespace,
-		"-c", "runner", "--", "psql", "-h", "localhost", "-U", "testuser", 
+		"-c", "runner", "--", "psql", "-h", "localhost", "-U", "testuser",
 		"-d", "testdb", "-c", "SELECT version();")
 	cmd.Env = append(cmd.Env, "PGPASSWORD=testpass")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("❌ Failed to connect to postgres: %v\nOutput: %s", err, output)
-		
+
 		// Debug: Check environment variables
 		cmd = exec.Command("kubectl", "exec", instanceID, "-n", namespace,
 			"-c", "runner", "--", "env")

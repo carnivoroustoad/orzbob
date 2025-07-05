@@ -184,13 +184,13 @@ type PolarProductResponse struct {
 
 // PolarPrice represents a product price
 type PolarPrice struct {
-	ID               string `json:"id"`
+	ID                string `json:"id"`
 	RecurringInterval string `json:"recurring_interval"`
-	PriceAmount      int    `json:"price_amount"`
-	PriceCurrency    string `json:"price_currency"`
-	IsArchived       bool   `json:"is_archived"`
-	ProductID        string `json:"product_id"`
-	CreatedAt        string `json:"created_at"`
+	PriceAmount       int    `json:"price_amount"`
+	PriceCurrency     string `json:"price_currency"`
+	IsArchived        bool   `json:"is_archived"`
+	ProductID         string `json:"product_id"`
+	CreatedAt         string `json:"created_at"`
 }
 
 // Price represents a product price

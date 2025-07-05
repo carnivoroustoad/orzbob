@@ -30,19 +30,19 @@ type InstanceUsageTracker struct {
 
 // ThrottleService manages instance throttling and daily caps
 type ThrottleService struct {
-	quotaEngine    *QuotaEngine
-	instances      map[string]*InstanceUsageTracker // instanceID -> tracker
-	orgDailyUsage  map[string]map[string]time.Duration // orgID -> date -> duration
-	mu             sync.RWMutex
-	checkInterval  time.Duration
-	stopCh         chan struct{}
-	wg             sync.WaitGroup
-	
+	quotaEngine   *QuotaEngine
+	instances     map[string]*InstanceUsageTracker    // instanceID -> tracker
+	orgDailyUsage map[string]map[string]time.Duration // orgID -> date -> duration
+	mu            sync.RWMutex
+	checkInterval time.Duration
+	stopCh        chan struct{}
+	wg            sync.WaitGroup
+
 	// Configurable limits
 	continuousLimit time.Duration // Default: 8 hours
 	dailyLimit      time.Duration // Default: 24 hours
 	idleTimeout     time.Duration // Default: 30 minutes
-	
+
 	// Callback for pausing instances
 	pauseCallback func(instanceID string, reason ThrottleReason) error
 }
@@ -91,9 +91,9 @@ func (t *ThrottleService) Stop() {
 func (t *ThrottleService) RegisterInstance(instanceID, orgID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	now := time.Now()
-	
+
 	t.instances[instanceID] = &InstanceUsageTracker{
 		InstanceID:     instanceID,
 		OrgID:          orgID,
@@ -102,7 +102,7 @@ func (t *ThrottleService) RegisterInstance(instanceID, orgID string) {
 		DayStartTime:   now,
 		IsPaused:       false,
 	}
-	
+
 	// Initialize daily usage map for org if needed
 	if t.orgDailyUsage[orgID] == nil {
 		t.orgDailyUsage[orgID] = make(map[string]time.Duration)
@@ -113,7 +113,7 @@ func (t *ThrottleService) RegisterInstance(instanceID, orgID string) {
 func (t *ThrottleService) UnregisterInstance(instanceID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	if tracker, exists := t.instances[instanceID]; exists {
 		// Record final usage for the day
 		if !tracker.IsPaused {
@@ -127,7 +127,7 @@ func (t *ThrottleService) UnregisterInstance(instanceID string) {
 func (t *ThrottleService) RecordActivity(instanceID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	if tracker, exists := t.instances[instanceID]; exists {
 		tracker.LastActiveTime = time.Now()
 	}
@@ -136,10 +136,10 @@ func (t *ThrottleService) RecordActivity(instanceID string) {
 // checkRoutine periodically checks all instances for throttling
 func (t *ThrottleService) checkRoutine(ctx context.Context) {
 	defer t.wg.Done()
-	
+
 	ticker := time.NewTicker(t.checkInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -160,44 +160,44 @@ func (t *ThrottleService) checkAllInstances() {
 		instances = append(instances, tracker)
 	}
 	t.mu.Unlock()
-	
+
 	now := time.Now()
 	today := now.Format("2006-01-02")
-	
+
 	for _, tracker := range instances {
 		if tracker.IsPaused {
 			continue // Already paused
 		}
-		
+
 		// Check continuous run limit (8 hours)
 		continuousRun := now.Sub(tracker.StartTime)
 		if continuousRun > t.continuousLimit {
-			log.Printf("Instance %s exceeded continuous limit (%v > %v)", 
+			log.Printf("Instance %s exceeded continuous limit (%v > %v)",
 				tracker.InstanceID, continuousRun, t.continuousLimit)
 			t.pauseInstance(tracker.InstanceID, ThrottleReasonContinuousLimit)
 			continue
 		}
-		
+
 		// Check idle timeout
 		idleTime := now.Sub(tracker.LastActiveTime)
 		if idleTime > t.idleTimeout {
-			log.Printf("Instance %s idle timeout (%v > %v)", 
+			log.Printf("Instance %s idle timeout (%v > %v)",
 				tracker.InstanceID, idleTime, t.idleTimeout)
 			t.pauseInstance(tracker.InstanceID, ThrottleReasonIdle)
 			continue
 		}
-		
+
 		// Check daily cap
 		t.mu.RLock()
 		dailyUsage := t.getOrgDailyUsage(tracker.OrgID, today)
 		t.mu.RUnlock()
-		
+
 		// Add current session time
 		sessionTime := now.Sub(tracker.DayStartTime)
 		totalDailyUsage := dailyUsage + sessionTime
-		
+
 		if totalDailyUsage > t.dailyLimit {
-			log.Printf("Org %s exceeded daily limit (%v > %v)", 
+			log.Printf("Org %s exceeded daily limit (%v > %v)",
 				tracker.OrgID, totalDailyUsage, t.dailyLimit)
 			t.pauseInstance(tracker.InstanceID, ThrottleReasonDailyLimit)
 		}
@@ -212,13 +212,13 @@ func (t *ThrottleService) pauseInstance(instanceID string, reason ThrottleReason
 		t.mu.Unlock()
 		return
 	}
-	
+
 	// Record usage before pausing
 	t.recordDailyUsage(tracker, time.Now())
 	tracker.IsPaused = true
 	tracker.PauseReason = reason
 	t.mu.Unlock()
-	
+
 	// Call pause callback
 	if t.pauseCallback != nil {
 		if err := t.pauseCallback(instanceID, reason); err != nil {
@@ -235,13 +235,13 @@ func (t *ThrottleService) pauseInstance(instanceID string, reason ThrottleReason
 func (t *ThrottleService) recordDailyUsage(tracker *InstanceUsageTracker, endTime time.Time) {
 	duration := endTime.Sub(tracker.DayStartTime)
 	today := tracker.DayStartTime.Format("2006-01-02")
-	
+
 	if t.orgDailyUsage[tracker.OrgID] == nil {
 		t.orgDailyUsage[tracker.OrgID] = make(map[string]time.Duration)
 	}
-	
+
 	t.orgDailyUsage[tracker.OrgID][today] += duration
-	
+
 	// If we've crossed into a new day, reset the day start time
 	if endTime.Format("2006-01-02") != today {
 		tracker.DayStartTime = time.Date(endTime.Year(), endTime.Month(), endTime.Day(), 0, 0, 0, 0, endTime.Location())
@@ -260,11 +260,11 @@ func (t *ThrottleService) getOrgDailyUsage(orgID, date string) time.Duration {
 func (t *ThrottleService) GetInstanceStatus(instanceID string) (paused bool, reason ThrottleReason, continuousRuntime time.Duration) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	if tracker, exists := t.instances[instanceID]; exists {
 		return tracker.IsPaused, tracker.PauseReason, time.Since(tracker.StartTime)
 	}
-	
+
 	return false, "", 0
 }
 
@@ -272,7 +272,7 @@ func (t *ThrottleService) GetInstanceStatus(instanceID string) (paused bool, rea
 func (t *ThrottleService) GetOrgDailyUsage(orgID string) time.Duration {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	today := time.Now().Format("2006-01-02")
 	return t.getOrgDailyUsage(orgID, today)
 }
@@ -281,10 +281,10 @@ func (t *ThrottleService) GetOrgDailyUsage(orgID string) time.Duration {
 func (t *ThrottleService) ResetDailyUsage() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	// Clear all daily usage
 	t.orgDailyUsage = make(map[string]map[string]time.Duration)
-	
+
 	// Reset day start times for all instances
 	now := time.Now()
 	for _, tracker := range t.instances {

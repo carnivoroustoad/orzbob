@@ -75,18 +75,18 @@ func (s *EmailService) Send(ctx context.Context, email Email) error {
 	// Prepare message
 	from := fmt.Sprintf("%s <%s>", s.config.FromName, s.config.FromAddress)
 	to := strings.Join(email.To, ", ")
-	
+
 	var msg bytes.Buffer
 	msg.WriteString(fmt.Sprintf("From: %s\r\n", from))
 	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
 	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", email.Subject))
 	msg.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().Format(time.RFC1123Z)))
-	
+
 	if email.HTML {
 		msg.WriteString("MIME-Version: 1.0\r\n")
 		msg.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
 	}
-	
+
 	msg.WriteString("\r\n")
 	msg.WriteString(email.Body)
 
@@ -181,7 +181,7 @@ func (s *EmailService) SendBudgetAlert(ctx context.Context, to []string, data Bu
 	}
 
 	subject := fmt.Sprintf("Orzbob Cloud: %d%% of included hours used", data.PercentageUsed)
-	
+
 	return s.Send(ctx, Email{
 		To:      to,
 		Subject: subject,

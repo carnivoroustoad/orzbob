@@ -20,10 +20,10 @@ func TestCloudInstanceSerialization(t *testing.T) {
 		CloudStatus:     "Running",
 		CreatedAt:       time.Now(),
 	}
-	
+
 	// Convert to data
 	data := inst.ToInstanceData()
-	
+
 	// Verify cloud fields are preserved
 	if !data.IsCloud {
 		t.Error("Expected IsCloud to be preserved")
@@ -34,13 +34,13 @@ func TestCloudInstanceSerialization(t *testing.T) {
 	if data.CloudTier != "medium" {
 		t.Errorf("Expected CloudTier to be medium, got %s", data.CloudTier)
 	}
-	
+
 	// Convert back from data
 	restored, err := FromInstanceData(data)
 	if err != nil {
 		t.Fatalf("Failed to restore from data: %v", err)
 	}
-	
+
 	// Verify restored instance has cloud fields
 	if !restored.IsCloud {
 		t.Error("Expected restored IsCloud to be true")

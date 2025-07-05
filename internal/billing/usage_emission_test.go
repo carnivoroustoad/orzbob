@@ -10,9 +10,9 @@ import (
 func TestUsageEmissionOnStop(t *testing.T) {
 	// Create mock config
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	// Create metering service
@@ -134,7 +134,7 @@ func TestTierPricingValidation(t *testing.T) {
 			continue
 		}
 		if actualCents != expectedCents {
-			t.Errorf("Tier %s: price = %.1f cents/hour, want %.1f cents/hour", 
+			t.Errorf("Tier %s: price = %.1f cents/hour, want %.1f cents/hour",
 				tier, actualCents, expectedCents)
 		}
 	}
@@ -144,9 +144,9 @@ func TestTierPricingValidation(t *testing.T) {
 func TestControlPlaneIntegration(t *testing.T) {
 	// This test demonstrates how the control plane records usage
 	config := &Config{
-		PolarAPIKey:      "test-key",
+		PolarAPIKey:        "test-key",
 		PolarWebhookSecret: "test-secret",
-		PolarOrgID:       "test-org",
+		PolarOrgID:         "test-org",
 	}
 
 	service, err := NewMeteringService(config)
@@ -164,10 +164,10 @@ func TestControlPlaneIntegration(t *testing.T) {
 
 	// Simulate multiple instance stops
 	instances := []struct {
-		id       string
-		orgID    string
-		tier     string
-		runtime  int // minutes
+		id      string
+		orgID   string
+		tier    string
+		runtime int // minutes
 	}{
 		{"inst-1", "org-1", "small", 125},
 		{"inst-2", "org-1", "small", 60},
@@ -190,7 +190,7 @@ func TestControlPlaneIntegration(t *testing.T) {
 
 	// Verify aggregation
 	records := mockClient.GetUsageRecords()
-	
+
 	// Should have 3 records (2 for org-1 small tier get aggregated)
 	if len(records) != 3 {
 		t.Errorf("Expected 3 aggregated records, got %d", len(records))
@@ -219,13 +219,13 @@ func TestControlPlaneIntegration(t *testing.T) {
 func TestHeartbeatTimeout(t *testing.T) {
 	// This test verifies that the idle reaper correctly records usage
 	// when an instance hasn't sent a heartbeat in 30 minutes
-	
+
 	// The control plane idle reaper will:
 	// 1. Check heartbeats every minute
 	// 2. Find instances idle for > 30 minutes
 	// 3. Call recordInstanceUsage() before deletion
 	// 4. Delete the instance
-	
+
 	// This is handled by the control plane, not the billing package
 	// See reapIdleInstances() in cmd/cloud-cp/main.go
 	t.Log("Heartbeat timeout usage recording is handled by control plane")

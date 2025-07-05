@@ -28,10 +28,10 @@ func TestBudgetAlertService_SendAlerts(t *testing.T) {
 	mockClient := NewMockPolarClient()
 	mockClient.SetupDefaultProducts()
 	quotaEngine, _ := NewQuotaEngine(mockClient, NewMemoryQuotaPersistence())
-	
+
 	// Create mock email service
 	mockEmail := &mockEmailService{}
-	
+
 	// Create budget alert service with mock email
 	alertService := NewBudgetAlertService(quotaEngine, mockEmail)
 
@@ -121,7 +121,7 @@ func TestBudgetAlertService_NoRepeatAlerts(t *testing.T) {
 	mockClient.SetupDefaultProducts()
 	quotaEngine, _ := NewQuotaEngine(mockClient, NewMemoryQuotaPersistence())
 	mockEmail := &mockEmailService{}
-	
+
 	alertService := NewBudgetAlertService(quotaEngine, mockEmail)
 
 	orgID := "test-org"
@@ -133,7 +133,7 @@ func TestBudgetAlertService_NoRepeatAlerts(t *testing.T) {
 	// First check - should send alert
 	_ = quotaEngine.RecordUsage(orgID, customerID, 9) // 90% usage
 	ctx := context.Background()
-	
+
 	err := alertService.checkOrganization(ctx, orgID)
 	if err != nil {
 		t.Fatalf("First check failed: %v", err)
@@ -161,7 +161,7 @@ func TestBudgetAlertService_ResetAfterBillingPeriod(t *testing.T) {
 	mockClient.SetupDefaultProducts()
 	quotaEngine, _ := NewQuotaEngine(mockClient, NewMemoryQuotaPersistence())
 	mockEmail := &mockEmailService{}
-	
+
 	alertService := NewBudgetAlertService(quotaEngine, mockEmail)
 
 	orgID := "test-org"

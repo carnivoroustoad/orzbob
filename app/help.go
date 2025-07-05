@@ -1,11 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"orzbob/log"
 	"orzbob/session"
 	"orzbob/ui"
 	"orzbob/ui/overlay"
-	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

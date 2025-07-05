@@ -48,19 +48,19 @@ func NewMeteringServiceWithClient(config *Config, client PolarClientInterface) (
 	if dataDir == "" {
 		dataDir = "/var/lib/orzbob"
 	}
-	
+
 	var persistence QuotaPersistence
 	persistence, err := NewFileQuotaPersistence(filepath.Join(dataDir, "billing"))
 	if err != nil {
 		log.Printf("Failed to create quota persistence, using memory: %v", err)
 		persistence = NewMemoryQuotaPersistence()
 	}
-	
+
 	quotaEngine, err = NewQuotaEngine(client, persistence)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create quota engine: %w", err)
 	}
-	
+
 	return &MeteringService{
 		client:      client,
 		samples:     make([]UsageSample, 0),
@@ -96,10 +96,10 @@ func (m *MeteringService) RecordUsage(orgID, customerID string, minutes int, tie
 	}
 
 	m.samples = append(m.samples, sample)
-	
+
 	// Update metrics
 	UsageMeterQueue.Set(float64(len(m.samples)))
-	
+
 	// Reset flush timer when new sample is added
 	if m.flushTimer != nil {
 		m.flushTimer.Stop()
@@ -140,7 +140,7 @@ func (m *MeteringService) Flush(ctx context.Context) error {
 	samplesToFlush := make([]UsageSample, len(m.samples))
 	copy(samplesToFlush, m.samples)
 	m.samples = m.samples[:0]
-	
+
 	// Update metrics
 	UsageMeterQueue.Set(0)
 	UsageMeterFlushTotal.Inc()
@@ -164,7 +164,7 @@ func (m *MeteringService) Flush(ctx context.Context) error {
 	var errors []error
 	for key, hours := range aggregated {
 		customerID := key[:len(key)-len(metadata[key].Tier)-1]
-		
+
 		record := MeterUsageRecord{
 			CustomerID: customerID,
 			Usage:      hours,
@@ -177,7 +177,7 @@ func (m *MeteringService) Flush(ctx context.Context) error {
 			UsageMeterFlushErrors.Inc()
 		} else {
 			UsageMeterRecordsTotal.Inc()
-			
+
 			// Update quota tracking
 			if m.quotaEngine != nil {
 				if err := m.quotaEngine.RecordUsage(metadata[key].OrgID, customerID, hours); err != nil {

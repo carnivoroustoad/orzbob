@@ -27,8 +27,7 @@ type LocalKind struct {
 func NewLocalKind(kubeconfig string) (*LocalKind, error) {
 	var config *rest.Config
 	var err error
-	
-	
+
 	if kubeconfig == "" {
 		// Try in-cluster config first
 		config, err = rest.InClusterConfig()
@@ -68,7 +67,7 @@ func (k *LocalKind) CreateInstanceWithSecrets(ctx context.Context, tier string, 
 func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, cloudConfig *config.CloudConfig, secrets []string) (*Instance, error) {
 	// Generate unique instance ID with nanosecond precision to avoid collisions
 	instanceID := fmt.Sprintf("runner-%d", time.Now().UnixNano())
-	
+
 	// Get runner image from environment or use default
 	runnerImage := os.Getenv("RUNNER_IMAGE")
 	if runnerImage == "" {
@@ -77,7 +76,7 @@ func (k *LocalKind) CreateInstanceWithConfig(ctx context.Context, tier string, c
 	} else {
 		log.Printf("Using RUNNER_IMAGE from env: %s", runnerImage)
 	}
-	
+
 	// Build pod configuration
 	podConfig := scheduler.PodConfig{
 		Name:        instanceID,
@@ -137,7 +136,7 @@ func (k *LocalKind) GetInstance(ctx context.Context, id string) (*Instance, erro
 	if secretsStr, ok := pod.Annotations["orzbob.io/secrets"]; ok && secretsStr != "" {
 		secrets = strings.Split(secretsStr, ",")
 	}
-	
+
 	return &Instance{
 		ID:        id,
 		Status:    string(pod.Status.Phase),
@@ -166,7 +165,7 @@ func (k *LocalKind) ListInstances(ctx context.Context) ([]*Instance, error) {
 		if secretsStr, ok := pod.Annotations["orzbob.io/secrets"]; ok && secretsStr != "" {
 			secrets = strings.Split(secretsStr, ",")
 		}
-		
+
 		instances = append(instances, &Instance{
 			ID:        pod.Labels["id"],
 			Status:    string(pod.Status.Phase),

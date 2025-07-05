@@ -9,13 +9,13 @@ import (
 func TestLoadCloudConfig(t *testing.T) {
 	// Create a temporary directory
 	tmpDir := t.TempDir()
-	
+
 	// Create .orz directory
 	orzDir := filepath.Join(tmpDir, ".orz")
 	if err := os.MkdirAll(orzDir, 0755); err != nil {
 		t.Fatalf("Failed to create .orz directory: %v", err)
 	}
-	
+
 	// Test case 1: No config file
 	config, err := LoadCloudConfig(tmpDir)
 	if err != nil {
@@ -24,7 +24,7 @@ func TestLoadCloudConfig(t *testing.T) {
 	if config.Version != "1.0" {
 		t.Errorf("Expected version 1.0, got %s", config.Version)
 	}
-	
+
 	// Test case 2: Valid config file
 	configContent := `version: "1.0"
 setup:
@@ -61,19 +61,19 @@ resources:
   cpu: "4"
   memory: "8Gi"
 `
-	
+
 	// Write config file
 	configPath := filepath.Join(orzDir, "cloud.yaml")
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
-	
+
 	// Load and validate
 	config, err = LoadCloudConfig(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
-	
+
 	// Verify setup scripts
 	if config.Setup.Init == "" {
 		t.Error("Expected init script to be set")
@@ -81,12 +81,12 @@ resources:
 	if config.Setup.OnAttach == "" {
 		t.Error("Expected onAttach script to be set")
 	}
-	
+
 	// Verify services
 	if len(config.Services) != 2 {
 		t.Errorf("Expected 2 services, got %d", len(config.Services))
 	}
-	
+
 	postgres, ok := config.Services["postgres"]
 	if !ok {
 		t.Error("Expected postgres service to exist")
@@ -101,12 +101,12 @@ resources:
 			t.Error("Expected postgres port 5432")
 		}
 	}
-	
+
 	// Verify environment variables
 	if config.Env["APP_ENV"] != "development" {
 		t.Errorf("Expected APP_ENV=development, got %s", config.Env["APP_ENV"])
 	}
-	
+
 	// Verify resources
 	if config.Resources.CPU != "4" {
 		t.Errorf("Expected CPU=4, got %s", config.Resources.CPU)
@@ -154,7 +154,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()

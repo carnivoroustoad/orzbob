@@ -33,48 +33,48 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// Skip auth for auth exchange endpoint
 		if r.URL.Path == "/v1/auth/exchange" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// Extract Bearer token
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			writeError(w, http.StatusUnauthorized, "Missing authorization header")
 			return
 		}
-		
+
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			writeError(w, http.StatusUnauthorized, "Invalid authorization format")
 			return
 		}
-		
+
 		token := parts[1]
-		
+
 		// Validate JWT token
 		claims, err := s.tokenManager.ValidateToken(token)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Invalid token")
 			return
 		}
-		
+
 		// Check token type
 		if claims.Type != "user" {
 			writeError(w, http.StatusUnauthorized, "Invalid token type")
 			return
 		}
-		
+
 		// Load user from database/cache
 		user, err := getUserByID(claims.UserID)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "User not found")
 			return
 		}
-		
+
 		// Add user to context
 		ctx := context.WithValue(r.Context(), userContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -98,32 +98,32 @@ func (s *Server) handleAuthExchange(w http.ResponseWriter, r *http.Request) {
 		GitHubLogin string `json:"github_login"`
 		Email       string `json:"email"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-	
+
 	// Verify GitHub token
 	if !verifyGitHubToken(req.GitHubToken, req.GitHubID) {
 		writeError(w, http.StatusUnauthorized, "Invalid GitHub token")
 		return
 	}
-	
+
 	// Get or create user
 	user, err := getOrCreateUser(req.GitHubID, req.GitHubLogin, req.Email)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to create user session")
 		return
 	}
-	
+
 	// Generate API token
 	token, err := s.tokenManager.GenerateUserToken(user.ID, 90*24*time.Hour)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to generate token")
 		return
 	}
-	
+
 	// Return token and user info
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -145,7 +145,7 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"user": user,
@@ -157,33 +157,33 @@ func verifyGitHubToken(token string, expectedID int64) bool {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	
+
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return false
 	}
-	
-	req.Header.Set("Authorization", "Bearer " + token)
+
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		// Log error but don't print to stdout in production
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}
-	
+
 	var user struct {
 		ID int64 `json:"id"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		return false
 	}
-	
+
 	return user.ID == expectedID
 }

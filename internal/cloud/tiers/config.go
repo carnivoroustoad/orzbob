@@ -4,22 +4,22 @@ import "time"
 
 // TierConfig represents the configuration for a specific tier
 type TierConfig struct {
-	Name               string
-	MaxInstances       int
+	Name                 string
+	MaxInstances         int
 	AllowedInstanceTypes []string
-	MaxCPU             string
-	MaxMemory          string
-	MaxStorage         string
-	IdleTimeout        time.Duration
-	MaxSessionDuration time.Duration
-	Features           []string
+	MaxCPU               string
+	MaxMemory            string
+	MaxStorage           string
+	IdleTimeout          time.Duration
+	MaxSessionDuration   time.Duration
+	Features             []string
 }
 
 // PlanConfig represents a subscription plan
 type PlanConfig struct {
-	Name        string
+	Name         string
 	MonthlyPrice int // in cents
-	Tiers       []TierConfig
+	Tiers        []TierConfig
 }
 
 var (

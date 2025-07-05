@@ -32,38 +32,38 @@ var cloudNewCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("not logged in: %v\nRun 'orz login' first", err)
 		}
-		
+
 		tier, _ := cmd.Flags().GetString("tier")
 		if tier == "" {
 			tier = "small"
 		}
-		
+
 		fmt.Printf("🚀 Creating %s instance...\n", tier)
-		
+
 		// Call API
 		apiURL := os.Getenv("ORZBOB_API_URL")
 		if apiURL == "" {
 			apiURL = "http://api.orzbob.com"
 		}
-		
+
 		reqBody, _ := json.Marshal(map[string]string{
 			"tier": tier,
 		})
-		
+
 		req, err := http.NewRequest("POST", apiURL+"/v1/instances", bytes.NewReader(reqBody))
 		if err != nil {
 			return err
 		}
-		
-		req.Header.Set("Authorization", "Bearer " + token)
+
+		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("API request failed: %w", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusCreated {
 			var errResp struct {
 				Error string `json:"error"`
@@ -71,21 +71,21 @@ var cloudNewCmd = &cobra.Command{
 			_ = json.NewDecoder(resp.Body).Decode(&errResp)
 			return fmt.Errorf("failed to create instance: %s", errResp.Error)
 		}
-		
+
 		var instance struct {
 			ID        string `json:"id"`
 			Status    string `json:"status"`
 			AttachURL string `json:"attach_url"`
 		}
-		
+
 		if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
 			return err
 		}
-		
+
 		fmt.Printf("✅ Instance created: %s\n", instance.ID)
 		fmt.Printf("   Status: %s\n", instance.Status)
 		fmt.Printf("\nAttaching to instance...\n")
-		
+
 		// Auto-attach
 		return attachToInstance(instance.AttachURL)
 	},
@@ -99,7 +99,7 @@ var cloudAttachCmd = &cobra.Command{
 		// We might not need OAuth token if using JWT URL
 		var wsURL string
 		var jwtToken string
-		
+
 		if len(args) > 0 {
 			arg := args[0]
 			// Check if it's a full attach URL with JWT token
@@ -109,13 +109,13 @@ var cloudAttachCmd = &cobra.Command{
 				if err != nil {
 					return fmt.Errorf("invalid URL: %w", err)
 				}
-				
+
 				// Extract JWT token from query params
 				jwtToken = parsedURL.Query().Get("token")
 				if jwtToken == "" {
 					return fmt.Errorf("no token found in attach URL")
 				}
-				
+
 				// Convert HTTP(S) to WebSocket URL
 				wsScheme := "ws"
 				if parsedURL.Scheme == "https" {
@@ -127,34 +127,34 @@ var cloudAttachCmd = &cobra.Command{
 			} else {
 				// Treat as instance ID - need to get attach URL from API
 				instanceID := arg
-				
+
 				// Get instance details from API to get attach URL
 				apiURL := os.Getenv("ORZBOB_API_URL")
 				if apiURL == "" {
 					apiURL = "http://api.orzbob.com"
 				}
-				
+
 				token, err := loadToken()
 				if err != nil {
 					return fmt.Errorf("not logged in: %v\nRun 'orz login' first", err)
 				}
-				
+
 				req, err := http.NewRequest("GET", apiURL+"/v1/instances/"+instanceID, nil)
 				if err != nil {
 					return err
 				}
-				req.Header.Set("Authorization", "Bearer " + token)
-				
+				req.Header.Set("Authorization", "Bearer "+token)
+
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
 					return fmt.Errorf("failed to get instance: %w", err)
 				}
 				defer resp.Body.Close()
-				
+
 				if resp.StatusCode != http.StatusOK {
 					return fmt.Errorf("instance not found")
 				}
-				
+
 				var instance struct {
 					ID        string `json:"id"`
 					AttachURL string `json:"attach_url"`
@@ -162,11 +162,11 @@ var cloudAttachCmd = &cobra.Command{
 				if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
 					return fmt.Errorf("failed to decode response: %w", err)
 				}
-				
+
 				if instance.AttachURL == "" {
 					return fmt.Errorf("no attach URL available for instance")
 				}
-				
+
 				// Use the attach URL from the API
 				return attachToInstance(instance.AttachURL)
 			}
@@ -175,7 +175,7 @@ var cloudAttachCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Connecting to %s...\n", wsURL)
-		
+
 		// Reconstruct full URL with token
 		fullURL := fmt.Sprintf("%s?token=%s", wsURL, url.QueryEscape(jwtToken))
 		return attachToInstance(fullURL)
@@ -201,7 +201,7 @@ var cloudListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", "Bearer " + token)
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -239,10 +239,10 @@ var cloudListCmd = &cobra.Command{
 
 		fmt.Println("ID                    STATUS    TIER     CREATED")
 		for _, inst := range instances {
-			fmt.Printf("%-20s  %-8s  %-7s  %s\n", 
-				inst.ID, 
-				inst.Status, 
-				inst.Tier, 
+			fmt.Printf("%-20s  %-8s  %-7s  %s\n",
+				inst.ID,
+				inst.Status,
+				inst.Tier,
 				inst.CreatedAt.Format("2006-01-02 15:04:05"))
 		}
 		return nil
@@ -271,7 +271,7 @@ var cloudKillCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", "Bearer " + token)
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -326,27 +326,27 @@ func doLogin(cmd *cobra.Command, args []string) error {
 		// Use default Orzbob Cloud client ID
 		clientID = "Ov23libNOCmmBZNvprW3"
 	}
-	
+
 	fmt.Println("🔐 Starting GitHub authentication...")
-	
+
 	// Create OAuth flow
 	githubHost, err := oauth.NewGitHubHost("https://github.com")
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub host: %w", err)
 	}
-	
+
 	flow := &oauth.Flow{
 		Host:     githubHost,
 		ClientID: clientID,
 		Scopes:   []string{"read:user", "user:email"},
 	}
-	
+
 	// Start device flow
 	accessToken, err := flow.DetectFlow()
 	if err != nil {
 		return fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Verify token by getting user info
 	fmt.Printf("✅ GitHub authentication successful!\n")
 	fmt.Printf("   Getting user info...\n")
@@ -355,7 +355,7 @@ func doLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to verify authentication: %w", err)
 	}
 	fmt.Printf("   GitHub user: %s\n", user.Login)
-	
+
 	// Exchange GitHub token for Orzbob API token
 	fmt.Printf("   Exchanging token with API...\n")
 	apiToken, err := exchangeToken(accessToken.Token, user)
@@ -367,16 +367,16 @@ func doLogin(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Printf("   API token received!\n")
 	}
-	
+
 	// Save both tokens
 	if err := saveTokens(accessToken.Token, apiToken, user); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
-	
+
 	fmt.Printf("✅ Successfully authenticated as %s (%s)\n", user.Login, user.Email)
 	fmt.Printf("   Organization: %s\n", user.OrgID)
 	fmt.Printf("   Plan: %s\n", user.Plan)
-	
+
 	return nil
 }
 
@@ -385,30 +385,30 @@ func getCurrentUser(token string) (*OrzbobUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	
-	req.Header.Set("Authorization", "Bearer " + token)
+
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitHub API error: %s", resp.Status)
 	}
-	
+
 	var ghUser GitHubUser
 	if err := json.NewDecoder(resp.Body).Decode(&ghUser); err != nil {
 		return nil, err
 	}
-	
+
 	// Get primary email if not public
 	if ghUser.Email == "" {
 		ghUser.Email, _ = getPrimaryEmail(token)
 	}
-	
+
 	return &OrzbobUser{
 		GitHubUser: ghUser,
 		OrgID:      fmt.Sprintf("gh-%d", ghUser.ID),
@@ -421,32 +421,32 @@ func getPrimaryEmail(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
-	req.Header.Set("Authorization", "Bearer " + token)
+
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	
+
 	var emails []struct {
 		Email    string `json:"email"`
 		Primary  bool   `json:"primary"`
 		Verified bool   `json:"verified"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
 		return "", err
 	}
-	
+
 	for _, e := range emails {
 		if e.Primary && e.Verified {
 			return e.Email, nil
 		}
 	}
-	
+
 	return "", fmt.Errorf("no primary email found")
 }
 
@@ -456,27 +456,27 @@ func exchangeToken(githubToken string, user *OrzbobUser) (string, error) {
 	if apiURL == "" {
 		apiURL = "http://api.orzbob.com" // Custom domain
 	}
-	
+
 	reqBody, _ := json.Marshal(map[string]interface{}{
 		"github_token": githubToken,
 		"github_id":    user.ID,
 		"github_login": user.Login,
 		"email":        user.Email,
 	})
-	
+
 	req, err := http.NewRequest("POST", apiURL+"/v1/auth/exchange", bytes.NewReader(reqBody))
 	if err != nil {
 		return "", err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		var errResp struct {
 			Error string `json:"error"`
@@ -484,7 +484,7 @@ func exchangeToken(githubToken string, user *OrzbobUser) (string, error) {
 		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		return "", fmt.Errorf("API error: %s", errResp.Error)
 	}
-	
+
 	var result struct {
 		Token string `json:"token"`
 		User  struct {
@@ -492,15 +492,15 @@ func exchangeToken(githubToken string, user *OrzbobUser) (string, error) {
 			Plan  string `json:"plan"`
 		} `json:"user"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
 	}
-	
+
 	// Update user info from API
 	user.OrgID = result.User.OrgID
 	user.Plan = result.User.Plan
-	
+
 	return result.Token, nil
 }
 
@@ -509,14 +509,14 @@ func saveTokens(githubToken, apiToken string, user *OrzbobUser) error {
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return err
 	}
-	
+
 	data := savedTokens{
 		GitHubToken: githubToken,
 		APIToken:    apiToken,
 		User:        *user,
 		ExpiresAt:   time.Now().Add(90 * 24 * time.Hour), // 90 days
 	}
-	
+
 	file, err := os.OpenFile(
 		filepath.Join(configDir, "token.json"),
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
@@ -526,13 +526,13 @@ func saveTokens(githubToken, apiToken string, user *OrzbobUser) error {
 		return err
 	}
 	defer file.Close()
-	
+
 	return json.NewEncoder(file).Encode(data)
 }
 
 func loadToken() (string, error) {
 	configPath := filepath.Join(os.Getenv("HOME"), ".config", "orzbob", "token.json")
-	
+
 	file, err := os.Open(configPath)
 	if err != nil {
 		return "", fmt.Errorf("not authenticated")
@@ -557,7 +557,7 @@ var logoutCmd = &cobra.Command{
 	Short: "Log out from Orzbob Cloud",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath := filepath.Join(os.Getenv("HOME"), ".config", "orzbob", "token.json")
-		
+
 		if err := os.Remove(configPath); err != nil {
 			if os.IsNotExist(err) {
 				fmt.Println("Not logged in")
@@ -565,7 +565,7 @@ var logoutCmd = &cobra.Command{
 			}
 			return fmt.Errorf("failed to logout: %w", err)
 		}
-		
+
 		fmt.Println("Successfully logged out")
 		return nil
 	},
@@ -577,27 +577,27 @@ var whoamiCmd = &cobra.Command{
 	Short: "Show current authenticated user",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath := filepath.Join(os.Getenv("HOME"), ".config", "orzbob", "token.json")
-		
+
 		file, err := os.Open(configPath)
 		if err != nil {
 			return fmt.Errorf("not logged in")
 		}
 		defer file.Close()
-		
+
 		var data savedTokens
 		if err := json.NewDecoder(file).Decode(&data); err != nil {
 			return err
 		}
-		
+
 		if time.Now().After(data.ExpiresAt) {
 			return fmt.Errorf("session expired")
 		}
-		
+
 		fmt.Printf("Logged in as: %s (%s)\n", data.User.Login, data.User.Email)
 		fmt.Printf("Organization: %s\n", data.User.OrgID)
 		fmt.Printf("Plan: %s\n", data.User.Plan)
 		fmt.Printf("Session expires: %s\n", data.ExpiresAt.Format("2006-01-02 15:04:05"))
-		
+
 		return nil
 	},
 }
@@ -610,7 +610,7 @@ func init() {
 	cloudCmd.AddCommand(cloudKillCmd)
 	cloudCmd.AddCommand(logoutCmd)
 	cloudCmd.AddCommand(whoamiCmd)
-	
+
 	// Add flags
 	cloudNewCmd.Flags().StringP("tier", "t", "small", "Instance tier (small, medium, large)")
 }
@@ -622,13 +622,13 @@ func attachToInstance(urlStr string) error {
 	if err != nil {
 		return fmt.Errorf("invalid attach URL: %w", err)
 	}
-	
+
 	// Extract token from query params
 	token := parsedURL.Query().Get("token")
 	if token == "" {
 		return fmt.Errorf("no token found in attach URL")
 	}
-	
+
 	// Convert to WebSocket URL
 	wsScheme := "ws"
 	if parsedURL.Scheme == "https" {
@@ -636,9 +636,9 @@ func attachToInstance(urlStr string) error {
 	}
 	parsedURL.Scheme = wsScheme
 	parsedURL.RawQuery = "" // Remove query params from WebSocket URL
-	
+
 	wsURL := parsedURL.String()
-	
+
 	// Create WebSocket client with JWT token
 	client, err := tunnel.NewClientWithToken(wsURL, token)
 	if err != nil {

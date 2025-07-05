@@ -18,9 +18,9 @@ func TestPolarClientAuth(t *testing.T) {
 	}
 
 	// Skip if using dummy values from .env.example
-	if config.PolarAPIKey == "polar_sk_..." || config.PolarAPIKey == "" || 
-	   config.PolarAPIKey == "polar_sk_test_123" || config.PolarAPIKey == "test-key" ||
-	   len(config.PolarAPIKey) < 20 || config.PolarAPIKey == "your-polar-api-key" {
+	if config.PolarAPIKey == "polar_sk_..." || config.PolarAPIKey == "" ||
+		config.PolarAPIKey == "polar_sk_test_123" || config.PolarAPIKey == "test-key" ||
+		len(config.PolarAPIKey) < 20 || config.PolarAPIKey == "your-polar-api-key" {
 		t.Skip("Skipping test: POLAR_API_KEY is not configured with real credentials")
 	}
 

@@ -21,7 +21,7 @@ func NewFileQuotaPersistence(dataDir string) (*FileQuotaPersistence, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
-	
+
 	return &FileQuotaPersistence{
 		filepath: filepath.Join(dataDir, "quota_usage.json"),
 	}, nil
@@ -31,24 +31,24 @@ func NewFileQuotaPersistence(dataDir string) (*FileQuotaPersistence, error) {
 func (f *FileQuotaPersistence) Save(ctx context.Context, usage map[string]*OrgUsage) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	data, err := json.MarshalIndent(usage, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal usage data: %w", err)
 	}
-	
+
 	// Write to temp file first
 	tmpFile := f.filepath + ".tmp"
 	if err := os.WriteFile(tmpFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
-	
+
 	// Atomic rename
 	if err := os.Rename(tmpFile, f.filepath); err != nil {
 		os.Remove(tmpFile) // Clean up temp file
 		return fmt.Errorf("failed to rename file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -56,7 +56,7 @@ func (f *FileQuotaPersistence) Save(ctx context.Context, usage map[string]*OrgUs
 func (f *FileQuotaPersistence) Load(ctx context.Context) (map[string]*OrgUsage, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	data, err := os.ReadFile(f.filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -65,12 +65,12 @@ func (f *FileQuotaPersistence) Load(ctx context.Context) (map[string]*OrgUsage, 
 		}
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	var usage map[string]*OrgUsage
 	if err := json.Unmarshal(data, &usage); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal usage data: %w", err)
 	}
-	
+
 	return usage, nil
 }
 
@@ -91,14 +91,14 @@ func NewMemoryQuotaPersistence() *MemoryQuotaPersistence {
 func (m *MemoryQuotaPersistence) Save(ctx context.Context, usage map[string]*OrgUsage) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Deep copy
 	m.data = make(map[string]*OrgUsage)
 	for k, v := range usage {
 		copied := *v
 		m.data[k] = &copied
 	}
-	
+
 	return nil
 }
 
@@ -106,13 +106,13 @@ func (m *MemoryQuotaPersistence) Save(ctx context.Context, usage map[string]*Org
 func (m *MemoryQuotaPersistence) Load(ctx context.Context) (map[string]*OrgUsage, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// Deep copy
 	result := make(map[string]*OrgUsage)
 	for k, v := range m.data {
 		copied := *v
 		result[k] = &copied
 	}
-	
+
 	return result, nil
 }

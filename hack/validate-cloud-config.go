@@ -45,27 +45,27 @@ func main() {
 	fmt.Println("✅ Configuration is valid!")
 	fmt.Println("\n📋 Summary:")
 	fmt.Printf("  Version: %s\n", cfg.Version)
-	
+
 	if cfg.Setup.Init != "" {
 		fmt.Printf("  ✓ Init script: %d lines\n", countLines(cfg.Setup.Init))
 	}
 	if cfg.Setup.OnAttach != "" {
 		fmt.Printf("  ✓ OnAttach script: %d lines\n", countLines(cfg.Setup.OnAttach))
 	}
-	
+
 	if len(cfg.Services) > 0 {
 		fmt.Printf("  ✓ Services: %d configured\n", len(cfg.Services))
 		for name, svc := range cfg.Services {
 			fmt.Printf("    - %s (%s)\n", name, svc.Image)
 		}
 	}
-	
+
 	if len(cfg.Env) > 0 {
 		fmt.Printf("  ✓ Environment variables: %d defined\n", len(cfg.Env))
 	}
-	
+
 	if cfg.Resources.CPU != "" || cfg.Resources.Memory != "" {
-		fmt.Printf("  ✓ Resources: CPU=%s, Memory=%s\n", 
+		fmt.Printf("  ✓ Resources: CPU=%s, Memory=%s\n",
 			cfg.Resources.CPU, cfg.Resources.Memory)
 	}
 

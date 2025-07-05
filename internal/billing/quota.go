@@ -18,14 +18,14 @@ type QuotaEngine struct {
 
 // OrgUsage tracks an organization's usage for the current billing period
 type OrgUsage struct {
-	OrgID            string             `json:"org_id"`
-	CustomerID       string             `json:"customer_id"`
-	BillingPeriodStart time.Time        `json:"billing_period_start"`
-	ProductID        string             `json:"product_id"`
-	IncludedHours    float64            `json:"included_hours"`
-	UsedHours        float64            `json:"used_hours"`
-	InOverage        bool               `json:"in_overage"`
-	LastUpdated      time.Time          `json:"last_updated"`
+	OrgID              string    `json:"org_id"`
+	CustomerID         string    `json:"customer_id"`
+	BillingPeriodStart time.Time `json:"billing_period_start"`
+	ProductID          string    `json:"product_id"`
+	IncludedHours      float64   `json:"included_hours"`
+	UsedHours          float64   `json:"used_hours"`
+	InOverage          bool      `json:"in_overage"`
+	LastUpdated        time.Time `json:"last_updated"`
 }
 
 // QuotaPersistence interface for storing quota data
@@ -41,7 +41,7 @@ func NewQuotaEngine(client PolarClientInterface, persistence QuotaPersistence) (
 		client:      client,
 		persistence: persistence,
 	}
-	
+
 	// Load existing usage data
 	if persistence != nil {
 		usage, err := persistence.Load(context.Background())
@@ -52,10 +52,10 @@ func NewQuotaEngine(client PolarClientInterface, persistence QuotaPersistence) (
 			log.Printf("Loaded quota data for %d organizations", len(usage))
 		}
 	}
-	
+
 	// Start periodic persistence
 	go qe.startPersistenceLoop()
-	
+
 	return qe, nil
 }
 
@@ -63,7 +63,7 @@ func NewQuotaEngine(client PolarClientInterface, persistence QuotaPersistence) (
 func (qe *QuotaEngine) RecordUsage(orgID, customerID string, hours float64) error {
 	qe.mu.Lock()
 	defer qe.mu.Unlock()
-	
+
 	// Get or create org usage
 	usage, exists := qe.usage[orgID]
 	if !exists {
@@ -74,7 +74,7 @@ func (qe *QuotaEngine) RecordUsage(orgID, customerID string, hours float64) erro
 		}
 		qe.usage[orgID] = usage
 	}
-	
+
 	// Reset if new billing period
 	if qe.isNewBillingPeriod(usage.BillingPeriodStart) {
 		usage.BillingPeriodStart = qe.getCurrentBillingPeriodStart()
@@ -82,12 +82,12 @@ func (qe *QuotaEngine) RecordUsage(orgID, customerID string, hours float64) erro
 		usage.InOverage = false
 		log.Printf("Reset usage for org %s - new billing period", orgID)
 	}
-	
+
 	// Update customer ID if changed
 	if usage.CustomerID != customerID && customerID != "" {
 		usage.CustomerID = customerID
 	}
-	
+
 	// Get subscription and included hours if not set
 	if usage.ProductID == "" && qe.client != nil {
 		if err := qe.updateSubscriptionInfo(usage); err != nil {
@@ -97,20 +97,20 @@ func (qe *QuotaEngine) RecordUsage(orgID, customerID string, hours float64) erro
 			usage.IncludedHours = 10
 		}
 	}
-	
+
 	// Update usage
 	usage.UsedHours += hours
 	usage.LastUpdated = time.Now()
-	
+
 	// Check if in overage
 	if usage.UsedHours > usage.IncludedHours {
 		if !usage.InOverage {
 			usage.InOverage = true
-			log.Printf("Org %s entered overage: %.2f hours used of %.2f included", 
+			log.Printf("Org %s entered overage: %.2f hours used of %.2f included",
 				orgID, usage.UsedHours, usage.IncludedHours)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (qe *QuotaEngine) RecordUsage(orgID, customerID string, hours float64) erro
 func (qe *QuotaEngine) GetUsageStatus(orgID string) (*UsageStatus, error) {
 	qe.mu.RLock()
 	defer qe.mu.RUnlock()
-	
+
 	usage, exists := qe.usage[orgID]
 	if !exists {
 		return &UsageStatus{
@@ -130,7 +130,7 @@ func (qe *QuotaEngine) GetUsageStatus(orgID string) (*UsageStatus, error) {
 			ResetDate:      qe.getNextResetDate(),
 		}, nil
 	}
-	
+
 	// Check if needs reset
 	if qe.isNewBillingPeriod(usage.BillingPeriodStart) {
 		// Return as if reset (actual reset happens on next record)
@@ -144,12 +144,12 @@ func (qe *QuotaEngine) GetUsageStatus(orgID string) (*UsageStatus, error) {
 			ResetDate:      qe.getNextResetDate(),
 		}, nil
 	}
-	
+
 	remaining := usage.IncludedHours - usage.UsedHours
 	if remaining < 0 {
 		remaining = 0
 	}
-	
+
 	return &UsageStatus{
 		OrgID:          orgID,
 		CustomerID:     usage.CustomerID,
@@ -181,17 +181,17 @@ func (qe *QuotaEngine) updateSubscriptionInfo(usage *OrgUsage) error {
 	if usage.CustomerID == "" {
 		return fmt.Errorf("no customer ID")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	sub, err := qe.client.GetSubscription(ctx, usage.CustomerID)
 	if err != nil {
 		return err
 	}
-	
+
 	usage.ProductID = sub.ProductID
-	
+
 	// Map product to included hours
 	switch sub.ProductID {
 	case "prod_free_tier":
@@ -208,7 +208,7 @@ func (qe *QuotaEngine) updateSubscriptionInfo(usage *OrgUsage) error {
 			usage.IncludedHours = 0
 		}
 	}
-	
+
 	return nil
 }
 
@@ -237,10 +237,10 @@ func (qe *QuotaEngine) startPersistenceLoop() {
 	if qe.persistence == nil {
 		return
 	}
-	
+
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		qe.mu.RLock()
 		usageCopy := make(map[string]*OrgUsage)
@@ -248,7 +248,7 @@ func (qe *QuotaEngine) startPersistenceLoop() {
 			usageCopy[k] = v
 		}
 		qe.mu.RUnlock()
-		
+
 		if err := qe.persistence.Save(context.Background(), usageCopy); err != nil {
 			log.Printf("Failed to persist quota data: %v", err)
 		}
@@ -259,7 +259,7 @@ func (qe *QuotaEngine) startPersistenceLoop() {
 func (qe *QuotaEngine) GetAllUsage() map[string]*UsageStatus {
 	qe.mu.RLock()
 	defer qe.mu.RUnlock()
-	
+
 	result := make(map[string]*UsageStatus)
 	for orgID := range qe.usage {
 		status, _ := qe.GetUsageStatus(orgID)

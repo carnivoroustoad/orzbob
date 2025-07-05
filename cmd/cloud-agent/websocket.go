@@ -22,7 +22,7 @@ var upgrader = websocket.Upgrader{
 // startWebSocketServer starts a WebSocket server for tmux attachment
 func startWebSocketServer() error {
 	http.HandleFunc("/attach", handleWebSocketAttach)
-	
+
 	port := os.Getenv("WS_PORT")
 	if port == "" {
 		port = "8081"
@@ -57,7 +57,7 @@ func handleWebSocketAttach(w http.ResponseWriter, r *http.Request) {
 
 	// Attach to tmux session
 	cmd := exec.Command("tmux", "attach-session", "-t", "orzbob")
-	
+
 	// Create pipes
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -135,7 +135,7 @@ func handleWebSocketAttach(w http.ResponseWriter, r *http.Request) {
 
 	// Wait for any goroutine to finish
 	<-done
-	
+
 	// Kill the tmux attach process
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
@@ -156,7 +156,7 @@ func runOnAttachScript() error {
 	// Run onAttach script if present
 	if cfg.Setup.OnAttach != "" {
 		log.Printf("Running onAttach script...")
-		
+
 		// Create script file
 		scriptPath := "/tmp/onattach.sh"
 		if err := os.WriteFile(scriptPath, []byte(cfg.Setup.OnAttach), 0755); err != nil {
@@ -164,7 +164,7 @@ func runOnAttachScript() error {
 		}
 
 		// Execute script in tmux session
-		cmd := exec.Command("tmux", "send-keys", "-t", "orzbob", 
+		cmd := exec.Command("tmux", "send-keys", "-t", "orzbob",
 			fmt.Sprintf("bash %s", scriptPath), "Enter")
 		if err := cmd.Run(); err != nil {
 			// Try running directly if tmux send fails

@@ -48,15 +48,15 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to get instance: %v", err)
 		}
-		
+
 		if inst.Status == "Running" {
 			fmt.Println("Pod is running!")
 			runningInstance = inst
 			break
 		}
-		
+
 		fmt.Printf("Pod status: %s, waiting...\n", inst.Status)
-		
+
 		// If pending for too long, check pod events
 		if i > 5 && inst.Status == "Pending" {
 			cmd := exec.Command("kubectl", "describe", "pod", inst.PodName, "-n", inst.Namespace)
@@ -65,7 +65,7 @@ func main() {
 				fmt.Printf("Pod describe output:\n%s\n", output)
 			}
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
 
@@ -87,20 +87,20 @@ func main() {
 		cmd = exec.Command("kubectl", "exec", "-n", runningInstance.Namespace, runningInstance.PodName, "--", "pwd")
 		pwdOut, _ := cmd.CombinedOutput()
 		log.Printf("Current directory: %s", pwdOut)
-		
+
 		cmd = exec.Command("kubectl", "exec", "-n", runningInstance.Namespace, runningInstance.PodName, "--", "ls", "-la")
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			log.Fatalf("Failed to list files in current dir: %v", err)
 		}
 	}
-	
+
 	fmt.Printf("Files in pod:\n%s\n", output)
 
 	// Check for specific repo files
 	expectedFiles := []string{"README.md", "go.mod", "main.go", ".git"}
 	missingFiles := []string{}
-	
+
 	for _, file := range expectedFiles {
 		if !strings.Contains(string(output), file) {
 			missingFiles = append(missingFiles, file)

@@ -49,7 +49,7 @@ func main() {
 
 	log.Printf("Starting Orzbob Cloud Agent v%s", version)
 	log.Printf("Process ID: %d", os.Getpid())
-	
+
 	// Bootstrap repository if configured
 	if err := bootstrapRepository(); err != nil {
 		log.Printf("Warning: Failed to bootstrap repository: %v", err)
@@ -127,7 +127,7 @@ func bootstrapRepository() error {
 	// Check if we're already in a git repository
 	if _, err := os.Stat(".git"); err == nil {
 		log.Printf("Repository already exists, pulling latest changes")
-		
+
 		// Fetch latest changes
 		cmd := exec.Command("git", "fetch", "origin")
 		cmd.Stdout = os.Stdout
@@ -158,11 +158,11 @@ func bootstrapRepository() error {
 
 	// Clone the repository
 	log.Printf("Cloning repository %s (branch: %s)", repoURL, branch)
-	
+
 	cmd := exec.Command("git", "clone", "--branch", branch, repoURL, ".")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
@@ -191,7 +191,7 @@ func startTmuxSession() error {
 
 	// Create tmux session
 	sessionName := "orzbob"
-	
+
 	// First, check if session already exists
 	if err := exec.Command("tmux", "has-session", "-t", sessionName).Run(); err == nil {
 		log.Printf("Tmux session '%s' already exists", sessionName)
@@ -201,7 +201,7 @@ func startTmuxSession() error {
 	// Create new detached session with the program
 	cmd := exec.Command("tmux", "new-session", "-d", "-s", sessionName, program)
 	cmd.Env = os.Environ()
-	
+
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to create tmux session: %w\nOutput: %s", err, output)
 	}
@@ -293,7 +293,7 @@ func runInitScript() error {
 	// Run init script if present
 	if cfg.Setup.Init != "" {
 		log.Printf("Running init script...")
-		
+
 		// Create script file
 		scriptPath := "/tmp/init.sh"
 		if err := os.WriteFile(scriptPath, []byte(cfg.Setup.Init), 0755); err != nil {

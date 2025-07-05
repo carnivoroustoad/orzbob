@@ -2,12 +2,12 @@ package tmux
 
 import (
 	"bytes"
-	"orzbob/log"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"orzbob/log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -456,7 +456,7 @@ func (t *TmuxSession) WSAttach(wsClient io.ReadWriteCloser, reconnectURL string)
 	t.isWebSocket = true
 	t.reconnectURL = reconnectURL
 	t.monitor = newStatusMonitor()
-	
+
 	// For WebSocket connections, we don't have a real PTY
 	// Create a pipe to simulate PTY behavior for compatibility
 	r, w, err := os.Pipe()
@@ -464,7 +464,7 @@ func (t *TmuxSession) WSAttach(wsClient io.ReadWriteCloser, reconnectURL string)
 		return fmt.Errorf("failed to create pipe: %w", err)
 	}
 	t.ptmx = w
-	
+
 	// Start goroutine to copy WebSocket data to pipe
 	go func() {
 		defer r.Close()
@@ -473,7 +473,7 @@ func (t *TmuxSession) WSAttach(wsClient io.ReadWriteCloser, reconnectURL string)
 			log.ErrorLog.Printf("Error copying WebSocket data to pipe: %v", err)
 		}
 	}()
-	
+
 	return nil
 }
 
@@ -482,7 +482,7 @@ func (t *TmuxSession) IsConnected() bool {
 	if !t.isWebSocket || t.wsClient == nil {
 		return true // Local sessions are always "connected"
 	}
-	
+
 	// Try to write a ping to test connection
 	// This is a simplified check - in production you'd want proper ping/pong
 	return t.wsClient != nil
@@ -493,13 +493,13 @@ func (t *TmuxSession) Reconnect() error {
 	if !t.isWebSocket || t.reconnectURL == "" {
 		return fmt.Errorf("not a WebSocket session")
 	}
-	
+
 	// Close existing connection
 	if t.wsClient != nil {
 		t.wsClient.Close()
 		t.wsClient = nil
 	}
-	
+
 	// This would need the cloud manager to reconnect
 	// For now, return an error indicating reconnection is needed
 	return fmt.Errorf("reconnection required - use cloud manager")

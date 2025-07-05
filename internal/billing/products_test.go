@@ -6,10 +6,10 @@ import (
 
 func TestPolarProducts(t *testing.T) {
 	tests := []struct {
-		name        string
-		productKey  string
-		wantPrice   int
-		wantHidden  bool
+		name         string
+		productKey   string
+		wantPrice    int
+		wantHidden   bool
 		wantIncluded float64 // small hours included
 	}{
 		{
@@ -95,8 +95,8 @@ func TestCalculateOverage(t *testing.T) {
 				SmallHours:  250, // 50 hours overage
 				MediumHours: 20,  // 20 hours overage
 			},
-			wantCents: 415 + 334, // (50 * 8.3) + (20 * 16.7)
-			wantSmall: 50,
+			wantCents:  415 + 334, // (50 * 8.3) + (20 * 16.7)
+			wantSmall:  50,
 			wantMedium: 20,
 		},
 		{

@@ -83,7 +83,7 @@ func main() {
 	}
 
 	fmt.Printf("Found %d existing products\n", len(existing))
-	
+
 	// Check if we already have the products
 	existingNames := make(map[string]bool)
 	for _, p := range existing {
@@ -115,9 +115,9 @@ func main() {
 	}
 
 	for _, p := range final {
-		fmt.Printf("  - %s ($%.2f/%s) - %s\n", 
-			p.Name, 
-			float64(p.Price.Amount)/100, 
+		fmt.Printf("  - %s ($%.2f/%s) - %s\n",
+			p.Name,
+			float64(p.Price.Amount)/100,
 			p.Price.Interval,
 			p.Visibility)
 	}

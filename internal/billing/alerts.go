@@ -23,13 +23,13 @@ type EmailSender interface {
 
 // BudgetAlertService manages budget alerts for organizations
 type BudgetAlertService struct {
-	quotaEngine    *QuotaEngine
-	emailService   EmailSender
-	alertsSent     map[string]map[int]time.Time // orgID -> percentage -> sentAt
-	alertsMu       sync.RWMutex
-	checkInterval  time.Duration
-	stopCh         chan struct{}
-	wg             sync.WaitGroup
+	quotaEngine   *QuotaEngine
+	emailService  EmailSender
+	alertsSent    map[string]map[int]time.Time // orgID -> percentage -> sentAt
+	alertsMu      sync.RWMutex
+	checkInterval time.Duration
+	stopCh        chan struct{}
+	wg            sync.WaitGroup
 }
 
 // NewBudgetAlertService creates a new budget alert service
@@ -81,7 +81,7 @@ func (b *BudgetAlertService) checkRoutine(ctx context.Context) {
 func (b *BudgetAlertService) checkAllOrganizations(ctx context.Context) {
 	// Get all organizations from quota engine
 	usageMap := b.quotaEngine.GetAllUsage()
-	
+
 	for orgID := range usageMap {
 		if err := b.checkOrganization(ctx, orgID); err != nil {
 			log.Printf("Error checking budget alerts for org %s: %v", orgID, err)
@@ -199,7 +199,7 @@ func (b *BudgetAlertService) ResetAlerts() {
 func (b *BudgetAlertService) GetAlertStatus(orgID string) map[int]time.Time {
 	b.alertsMu.RLock()
 	defer b.alertsMu.RUnlock()
-	
+
 	if alerts, exists := b.alertsSent[orgID]; exists {
 		// Return a copy to avoid race conditions
 		result := make(map[int]time.Time)
@@ -208,6 +208,6 @@ func (b *BudgetAlertService) GetAlertStatus(orgID string) map[int]time.Time {
 		}
 		return result
 	}
-	
+
 	return nil
 }

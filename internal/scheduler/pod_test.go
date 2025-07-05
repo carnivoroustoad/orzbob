@@ -133,7 +133,7 @@ func TestPodSpecBuilder_Build(t *testing.T) {
 			},
 			verify: func(t *testing.T, pod *corev1.Pod) {
 				container := pod.Spec.Containers[0]
-				
+
 				// Check volume mounts include cache dirs
 				cacheMountCount := 0
 				for _, mount := range container.VolumeMounts {
@@ -354,7 +354,7 @@ func TestPodSpecBuilder_WithSidecars(t *testing.T) {
 			// Verify sidecar properties
 			if tt.config.CloudConfig != nil {
 				serviceConfig := tt.config.CloudConfig.Services[tt.checkSidecar]
-				
+
 				// Check image
 				if sidecar.Image != serviceConfig.Image {
 					t.Errorf("Expected image %s, got %s", serviceConfig.Image, sidecar.Image)

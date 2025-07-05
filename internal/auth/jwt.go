@@ -125,7 +125,7 @@ func (tm *TokenManager) GenerateUserToken(userID string, duration time.Duration)
 		UserID: userID,
 		Type:   "user",
 	}
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	return token.SignedString(tm.privateKey)
 }

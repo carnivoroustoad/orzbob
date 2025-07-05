@@ -25,7 +25,7 @@ var upgrader = websocket.Upgrader{
 
 // Message types for WebSocket communication
 const (
-	MessageTypeData  = "data"
+	MessageTypeData   = "data"
 	MessageTypeResize = "resize"
 	MessageTypePing   = "ping"
 	MessageTypePong   = "pong"
@@ -82,7 +82,7 @@ func (p *WSProxy) HandleAttach(instanceID string) http.HandlerFunc {
 		p.mu.Lock()
 		p.sessions[sessionID] = session
 		p.mu.Unlock()
-		
+
 		// Increment active sessions metric
 		metrics.ActiveSessions.Inc()
 
@@ -91,7 +91,7 @@ func (p *WSProxy) HandleAttach(instanceID string) http.HandlerFunc {
 			delete(p.sessions, sessionID)
 			p.mu.Unlock()
 			close(session.done)
-			
+
 			// Decrement active sessions metric
 			metrics.ActiveSessions.Dec()
 		}()
@@ -167,9 +167,9 @@ func (s *Session) handleEchoMode() {
 
 // Client represents a WebSocket client for connecting to the proxy
 type Client struct {
-	conn   *websocket.Conn
-	done   chan struct{}
-	mu     sync.Mutex
+	conn *websocket.Conn
+	done chan struct{}
+	mu   sync.Mutex
 }
 
 // NewClient creates a new WebSocket client
@@ -203,7 +203,7 @@ func NewClientWithToken(url string, token string) (*Client, error) {
 		}
 		url = fmt.Sprintf("%s%stoken=%s", url, separator, token)
 	}
-	
+
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)

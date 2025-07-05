@@ -1,9 +1,9 @@
 package session
 
 import (
-	"orzbob/config"
 	"encoding/json"
 	"fmt"
+	"orzbob/config"
 	"time"
 )
 
@@ -22,7 +22,7 @@ type InstanceData struct {
 	Program   string          `json:"program"`
 	Worktree  GitWorktreeData `json:"worktree"`
 	DiffStats DiffStatsData   `json:"diff_stats"`
-	
+
 	// Cloud instance fields
 	IsCloud         bool   `json:"is_cloud"`
 	CloudInstanceID string `json:"cloud_instance_id"`

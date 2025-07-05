@@ -1,9 +1,9 @@
 package git
 
 import (
-	"orzbob/log"
 	"fmt"
 	"io"
+	"orzbob/log"
 	"os"
 	"os/exec"
 	"path/filepath"

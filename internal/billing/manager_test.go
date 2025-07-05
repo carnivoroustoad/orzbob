@@ -9,16 +9,16 @@ import (
 func TestManager_BudgetAlerts(t *testing.T) {
 	// Create a test config
 	config := Config{
-		PolarAPIKey:    "test-key",
-		PolarOrgID:     "test-org-id",
-		PolarProjectID: "test-project",
+		PolarAPIKey:        "test-key",
+		PolarOrgID:         "test-org-id",
+		PolarProjectID:     "test-project",
 		PolarWebhookSecret: "test-secret",
 	}
 
 	// Create mock client
 	mockClient := NewMockPolarClient()
 	mockClient.SetupDefaultProducts()
-	
+
 	// Set up subscription for test org
 	mockClient.subscriptions["customer-test-org"] = &SubscriptionResponse{
 		ID:         "sub-123",
@@ -122,9 +122,9 @@ func TestManager_BudgetAlerts(t *testing.T) {
 
 func TestManager_StartStop(t *testing.T) {
 	config := Config{
-		PolarAPIKey:    "test-key",
-		PolarOrgID:     "test-org-id",
-		PolarProjectID: "test-project",
+		PolarAPIKey:        "test-key",
+		PolarOrgID:         "test-org-id",
+		PolarProjectID:     "test-project",
 		PolarWebhookSecret: "test-secret",
 	}
 
@@ -134,7 +134,7 @@ func TestManager_StartStop(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Start manager
 	err = manager.Start(ctx)
 	if err != nil {
@@ -146,6 +146,6 @@ func TestManager_StartStop(t *testing.T) {
 
 	// Stop manager
 	manager.Stop()
-	
+
 	// If Stop() doesn't work properly, the test will timeout
 }

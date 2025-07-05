@@ -29,7 +29,7 @@ func Example_meteringService() {
 	// Example: Record usage when an instance is stopped
 	orgID := "org-123"
 	customerID := "cust-456" // From Polar subscription
-	instanceRuntime := 125    // minutes
+	instanceRuntime := 125   // minutes
 	tier := "small"
 
 	meteringService.RecordUsage(orgID, customerID, instanceRuntime, tier)
@@ -56,16 +56,16 @@ func Example_usageCalculation() {
 		name    string
 		minutes int
 	}{
-		{"small", 120},   // 2 hours
-		{"medium", 90},   // 1.5 hours
-		{"large", 45},    // 0.75 hours
-		{"gpu", 30},      // 0.5 hours
+		{"small", 120}, // 2 hours
+		{"medium", 90}, // 1.5 hours
+		{"large", 45},  // 0.75 hours
+		{"gpu", 30},    // 0.5 hours
 	}
 
 	for _, tier := range tiers {
 		hours := billing.UsageToHours(tier.minutes, tier.name)
 		cost := hours * billing.TierPricing[tier.name]
-		fmt.Printf("%s: %d minutes = %.2f hours = $%.2f\n", 
+		fmt.Printf("%s: %d minutes = %.2f hours = $%.2f\n",
 			tier.name, tier.minutes, hours, cost/100)
 	}
 
@@ -79,7 +79,7 @@ func Example_usageCalculation() {
 // Example_prometheusMetrics shows available metrics
 func Example_prometheusMetrics() {
 	// The metering service exposes these Prometheus metrics:
-	
+
 	// orzbob_usage_meter_queue - Current queue size
 	// orzbob_usage_meter_flush_total - Total flush operations
 	// orzbob_usage_meter_flush_errors_total - Failed flushes
@@ -97,10 +97,10 @@ func Example_controlPlaneIntegration() {
 	//     // Calculate runtime
 	//     runtime := time.Since(instance.StartTime)
 	//     minutes := int(runtime.Minutes())
-	//     
+	//
 	//     // Get customer ID from organization mapping
 	//     customerID := s.getCustomerID(instance.OrgID)
-	//     
+	//
 	//     // Record usage
 	//     s.meteringService.RecordUsage(
 	//         instance.OrgID,

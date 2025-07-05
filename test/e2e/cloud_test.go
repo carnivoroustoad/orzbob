@@ -47,7 +47,7 @@ func TestE2ECloudWorkflow(t *testing.T) {
 		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Org-ID", fmt.Sprintf("test-create-%d", time.Now().UnixNano()))
-		
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
@@ -134,45 +134,45 @@ func TestE2ECloudWorkflow(t *testing.T) {
 	t.Run("QuotaEnforcement", func(t *testing.T) {
 		// Create instances up to quota limit
 		var instances []string
-		
+
 		// Create 3 instances (quota limit)
 		for i := 0; i < 3; i++ {
 			reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 			req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Org-ID", "e2e-test-org")
-			
+
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				t.Fatalf("Failed to create instance %d: %v", i+1, err)
 			}
-			
+
 			if resp.StatusCode != http.StatusCreated {
 				t.Fatalf("Expected 201 for instance %d, got %d", i+1, resp.StatusCode)
 			}
-			
+
 			var createResp CreateInstanceResponse
 			json.NewDecoder(resp.Body).Decode(&createResp)
 			instances = append(instances, createResp.ID)
 			resp.Body.Close()
 		}
-		
+
 		// Try to create fourth instance (should fail)
 		reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 		thirdReq, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		thirdReq.Header.Set("Content-Type", "application/json")
 		thirdReq.Header.Set("X-Org-ID", "e2e-test-org")
-		
+
 		resp, err := http.DefaultClient.Do(thirdReq)
 		if err != nil {
 			t.Fatalf("Failed to attempt third instance: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusTooManyRequests {
 			t.Errorf("Expected 429 for quota exceeded, got %d", resp.StatusCode)
 		}
-		
+
 		// Clean up - delete instances
 		for _, id := range instances {
 			delReq, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+id, nil)
@@ -197,29 +197,29 @@ func TestE2ESecrets(t *testing.T) {
 				"DB_URL":  "postgres://test",
 			},
 		}
-		
+
 		reqBody, _ := json.Marshal(secretData)
 		resp, err := http.Post(baseURL+"/v1/secrets", "application/json", bytes.NewBuffer(reqBody))
 		if err != nil {
 			t.Fatalf("Failed to create secret: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusCreated {
 			t.Errorf("Expected 201, got %d", resp.StatusCode)
 		}
-		
+
 		// List secrets
 		resp, err = http.Get(baseURL + "/v1/secrets")
 		if err != nil {
 			t.Fatalf("Failed to list secrets: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected 200, got %d", resp.StatusCode)
 		}
-		
+
 		// Clean up - delete secret
 		delSecretReq, _ := http.NewRequest("DELETE", baseURL+"/v1/secrets/test-secret", nil)
 		resp, _ = http.DefaultClient.Do(delSecretReq)

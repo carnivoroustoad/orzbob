@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func TestEmailService_Send(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -48,10 +47,10 @@ func TestEmailService_Send(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service := &EmailService{
 				config: EmailConfig{
-					SMTPHost:     "localhost",
-					SMTPPort:     "1025",
-					FromAddress:  "noreply@orzbob.cloud",
-					FromName:     "Orzbob Cloud",
+					SMTPHost:    "localhost",
+					SMTPPort:    "1025",
+					FromAddress: "noreply@orzbob.cloud",
+					FromName:    "Orzbob Cloud",
 				},
 			}
 
@@ -70,10 +69,10 @@ func TestEmailService_Send(t *testing.T) {
 func TestEmailService_SendBudgetAlert(t *testing.T) {
 	service := &EmailService{
 		config: EmailConfig{
-			SMTPHost:     "localhost",
-			SMTPPort:     "1025",
-			FromAddress:  "noreply@orzbob.cloud",
-			FromName:     "Orzbob Cloud",
+			SMTPHost:    "localhost",
+			SMTPPort:    "1025",
+			FromAddress: "noreply@orzbob.cloud",
+			FromName:    "Orzbob Cloud",
 		},
 	}
 
@@ -89,8 +88,8 @@ func TestEmailService_SendBudgetAlert(t *testing.T) {
 	// This would normally send to a mock SMTP server
 	// For now, we just verify the template renders correctly
 	_ = context.Background() // Would be used for actual sending
-	_ = service // Would be used for actual sending
-	
+	_ = service              // Would be used for actual sending
+
 	// Test that the function doesn't panic and processes the template
 	t.Run("template renders correctly", func(t *testing.T) {
 		// We can't actually send without an SMTP server, but we can verify
@@ -98,7 +97,7 @@ func TestEmailService_SendBudgetAlert(t *testing.T) {
 		if data.PercentageUsed != 50 {
 			t.Errorf("Expected 50%% usage, got %d%%", data.PercentageUsed)
 		}
-		
+
 		if !strings.Contains(data.ManagePlanURL, "billing") {
 			t.Errorf("Expected billing URL, got %s", data.ManagePlanURL)
 		}
@@ -122,11 +121,11 @@ func TestNewEmailServiceFromEnv(t *testing.T) {
 	if service.config.SMTPHost != "smtp.example.com" {
 		t.Errorf("Expected SMTP host smtp.example.com, got %s", service.config.SMTPHost)
 	}
-	
+
 	if service.config.SMTPPort != "587" {
 		t.Errorf("Expected SMTP port 587, got %s", service.config.SMTPPort)
 	}
-	
+
 	if service.config.FromAddress != "custom@example.com" {
 		t.Errorf("Expected from address custom@example.com, got %s", service.config.FromAddress)
 	}

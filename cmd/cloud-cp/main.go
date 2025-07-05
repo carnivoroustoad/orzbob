@@ -69,15 +69,15 @@ type Server struct {
 	heartbeatMu  sync.RWMutex
 	tokenManager *auth.TokenManager
 	baseURL      string
-	
+
 	// Quota tracking: orgID -> instance count
 	instanceCounts map[string]int
 	quotaMu        sync.RWMutex
 	freeQuota      int // Max instances for free tier
-	
+
 	// Billing
 	meteringService *billing.MeteringService
-	
+
 	// Instance tracking for usage calculation
 	instanceStarts map[string]time.Time
 	startsMu       sync.RWMutex
@@ -108,7 +108,7 @@ func NewServer(p provider.Provider) *Server {
 		freeQuota:      3, // Free tier allows 3 instances for testing
 		instanceStarts: make(map[string]time.Time),
 	}
-	
+
 	// Initialize billing if configured
 	billingConfig := billing.LoadConfigOptional()
 	if billingConfig.IsConfigured() {
@@ -123,12 +123,12 @@ func NewServer(p provider.Provider) *Server {
 	} else {
 		log.Println("Billing not configured, running without metering")
 	}
-	
+
 	s.setupRoutes()
-	
+
 	// Start idle reaper
 	go s.startIdleReaper()
-	
+
 	return s
 }
 
@@ -173,7 +173,7 @@ func (s *Server) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
 // handleGetSecret retrieves a secret
 func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	
+
 	secret, err := s.provider.GetSecret(r.Context(), name)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "Secret not found")
@@ -193,7 +193,7 @@ func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 // handleDeleteSecret deletes a secret
 func (s *Server) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	
+
 	if err := s.provider.DeleteSecret(r.Context(), name); err != nil {
 		writeError(w, http.StatusNotFound, "Secret not found")
 		return
@@ -235,13 +235,13 @@ func (s *Server) setupRoutes() {
 
 	// Health check
 	s.router.Get("/health", s.handleHealth)
-	
+
 	// Metrics endpoint
 	s.router.Handle("/metrics", promhttp.Handler())
 
 	// Auth endpoints (no auth required)
 	s.router.Post("/v1/auth/exchange", s.handleAuthExchange)
-	
+
 	// WebSocket endpoints (token auth handled internally)
 	s.router.Get("/v1/instances/{id}/attach", s.handleWSAttach)
 
@@ -249,23 +249,23 @@ func (s *Server) setupRoutes() {
 	s.router.Route("/v1", func(r chi.Router) {
 		// Apply auth middleware
 		r.Use(s.authMiddleware)
-		
+
 		// Instance management
 		r.Post("/instances", s.handleCreateInstance)
 		r.Get("/instances/{id}", s.handleGetInstance)
 		r.Delete("/instances/{id}", s.handleDeleteInstance)
 		r.Get("/instances", s.handleListInstances)
 		r.Post("/instances/{id}/heartbeat", s.handleHeartbeat)
-		
+
 		// Secrets management
 		r.Post("/secrets", s.handleCreateSecret)
 		r.Get("/secrets/{name}", s.handleGetSecret)
 		r.Delete("/secrets/{name}", s.handleDeleteSecret)
 		r.Get("/secrets", s.handleListSecrets)
-		
+
 		// Billing
 		r.Get("/billing", s.handleGetBilling)
-		
+
 		// User info
 		r.Get("/user", s.handleGetUser)
 	})
@@ -296,7 +296,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
-	
+
 	orgID := user.OrgID
 
 	// Check quota
@@ -322,7 +322,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		s.quotaMu.Unlock()
 		return
 	}
-	
+
 	// Validate tier is one of the allowed values
 	validTiers := map[string]bool{"small": true, "medium": true, "large": true}
 	if !validTiers[tier] {
@@ -341,20 +341,20 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		s.quotaMu.Lock()
 		s.instanceCounts[orgID]--
 		s.quotaMu.Unlock()
-		
+
 		log.Printf("Failed to create instance: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to create instance")
 		return
 	}
-	
+
 	// Store org ID in instance metadata for deletion tracking
 	instance.Labels["org-id"] = orgID
-	
+
 	// Track instance start time for billing
 	s.startsMu.Lock()
 	s.instanceStarts[instance.ID] = time.Now()
 	s.startsMu.Unlock()
-	
+
 	// Increment metrics
 	metrics.InstancesCreated.Inc()
 
@@ -374,7 +374,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	} else if strings.HasPrefix(baseURL, "https://") {
 		baseURL = "wss://" + strings.TrimPrefix(baseURL, "https://")
 	}
-	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s", 
+	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s",
 		baseURL, instance.ID, url.QueryEscape(token))
 
 	// Return response
@@ -393,7 +393,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 // handleGetInstance handles get instance requests
 func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	instance, err := s.provider.GetInstance(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "Instance not found")
@@ -416,7 +416,7 @@ func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
 	} else if strings.HasPrefix(baseURL, "https://") {
 		baseURL = "wss://" + strings.TrimPrefix(baseURL, "https://")
 	}
-	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s", 
+	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s",
 		baseURL, instance.ID, url.QueryEscape(token))
 
 	// Create response with instance data and attach URL
@@ -436,23 +436,23 @@ func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
 // handleDeleteInstance handles delete instance requests
 func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	// Get instance to find org ID
 	instance, err := s.provider.GetInstance(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "Instance not found")
 		return
 	}
-	
+
 	// Record usage before deletion
 	s.recordInstanceUsage(instance)
-	
+
 	// Delete the instance
 	if err := s.provider.DeleteInstance(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to delete instance")
 		return
 	}
-	
+
 	// Decrement quota count
 	if orgID, ok := instance.Labels["org-id"]; ok && orgID != "" {
 		s.quotaMu.Lock()
@@ -461,7 +461,7 @@ func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 		}
 		s.quotaMu.Unlock()
 	}
-	
+
 	// Increment metrics
 	metrics.InstancesDeleted.Inc()
 
@@ -486,7 +486,7 @@ func (s *Server) handleListInstances(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleWSAttach(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	log.Printf("WebSocket attach request for instance %s", id)
-	
+
 	// Get token from query parameter
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -509,7 +509,7 @@ func (s *Server) handleWSAttach(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "Token not valid for this instance")
 		return
 	}
-	
+
 	// Verify instance exists
 	_, err = s.provider.GetInstance(r.Context(), id)
 	if err != nil {
@@ -524,7 +524,7 @@ func (s *Server) handleWSAttach(w http.ResponseWriter, r *http.Request) {
 // handleHeartbeat handles heartbeat requests from instances
 func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	// Verify instance exists
 	_, err := s.provider.GetInstance(r.Context(), id)
 	if err != nil {
@@ -536,7 +536,7 @@ func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	s.heartbeatMu.Lock()
 	s.heartbeats[id] = time.Now()
 	s.heartbeatMu.Unlock()
-	
+
 	// Increment metrics
 	metrics.HeartbeatsReceived.Inc()
 
@@ -547,30 +547,30 @@ func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request) {
 	// For now, return mock data
 	// TODO: Integrate with actual billing manager when available
-	
+
 	// Get authenticated user from context
 	user, err := getUserFromContext(r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
-	
+
 	orgID := user.OrgID
-	
+
 	// Mock billing data
 	billingInfo := map[string]interface{}{
 		"organization":    orgID,
-		"plan":           "Base + Usage ($20/mo)",
-		"hours_used":     142.5,
-		"hours_included": 200.0,
-		"percent_used":   71,
-		"in_overage":     false,
-		"reset_date":     time.Now().AddDate(0, 0, 9).Format(time.RFC3339),
-		"estimated_bill": 20.00,
-		"daily_usage":    "5h 23m",
+		"plan":            "Base + Usage ($20/mo)",
+		"hours_used":      142.5,
+		"hours_included":  200.0,
+		"percent_used":    71,
+		"in_overage":      false,
+		"reset_date":      time.Now().AddDate(0, 0, 9).Format(time.RFC3339),
+		"estimated_bill":  20.00,
+		"daily_usage":     "5h 23m",
 		"throttle_status": "OK - No limits exceeded",
 	}
-	
+
 	// TODO: When billing manager is available, use:
 	// if s.billingManager != nil {
 	//     usage, err := s.billingManager.GetUsage(orgID)
@@ -581,7 +581,7 @@ func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request) {
 	//         billingInfo["in_overage"] = usage.InOverage
 	//     }
 	// }
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(billingInfo)
 }
@@ -611,11 +611,11 @@ func (s *Server) reapIdleInstances() {
 
 	// Collect instances to delete to avoid holding lock during deletion
 	toDelete := []provider.Instance{}
-	
+
 	s.heartbeatMu.RLock()
 	for _, instance := range instances {
 		lastHeartbeat, exists := s.heartbeats[instance.ID]
-		
+
 		// If no heartbeat recorded, use creation time
 		if !exists {
 			lastHeartbeat = instance.CreatedAt
@@ -627,14 +627,14 @@ func (s *Server) reapIdleInstances() {
 		}
 	}
 	s.heartbeatMu.RUnlock()
-	
+
 	// Delete idle instances
 	for _, instance := range toDelete {
 		log.Printf("Reaping idle instance %s", instance.ID)
-		
+
 		// Record usage before deletion
 		s.recordInstanceUsage(&instance)
-		
+
 		// Delete the instance
 		if err := s.provider.DeleteInstance(ctx, instance.ID); err != nil {
 			log.Printf("Failed to delete idle instance %s: %v", instance.ID, err)
@@ -643,7 +643,7 @@ func (s *Server) reapIdleInstances() {
 			s.heartbeatMu.Lock()
 			delete(s.heartbeats, instance.ID)
 			s.heartbeatMu.Unlock()
-			
+
 			// Decrement quota count
 			if orgID, ok := instance.Labels["org-id"]; ok && orgID != "" {
 				s.quotaMu.Lock()
@@ -652,7 +652,7 @@ func (s *Server) reapIdleInstances() {
 				}
 				s.quotaMu.Unlock()
 			}
-			
+
 			// Increment metrics
 			metrics.IdleInstancesReaped.Inc()
 			metrics.InstancesDeleted.Inc()
@@ -666,41 +666,41 @@ func (s *Server) recordInstanceUsage(instance *provider.Instance) {
 	if s.meteringService == nil {
 		return
 	}
-	
+
 	// Get start time
 	s.startsMu.RLock()
 	startTime, exists := s.instanceStarts[instance.ID]
 	s.startsMu.RUnlock()
-	
+
 	if !exists {
 		// Use creation time if start time not tracked
 		startTime = instance.CreatedAt
 	}
-	
+
 	// Calculate runtime in minutes
 	runtime := time.Since(startTime)
 	minutes := int(runtime.Minutes())
-	
+
 	// Don't record if less than 1 minute
 	if minutes < 1 {
 		return
 	}
-	
+
 	// Get org ID and customer ID
 	orgID, ok := instance.Labels["org-id"]
 	if !ok || orgID == "" {
 		log.Printf("Instance %s missing org-id label, skipping usage recording", instance.ID)
 		return
 	}
-	
+
 	// For now, use org ID as customer ID
 	// TODO: Map org ID to Polar customer ID from subscription
 	customerID := orgID
-	
+
 	// Record usage
 	s.meteringService.RecordUsage(orgID, customerID, minutes, instance.Tier)
 	log.Printf("Recorded usage for instance %s: %d minutes of %s tier", instance.ID, minutes, instance.Tier)
-	
+
 	// Clean up start time tracking
 	s.startsMu.Lock()
 	delete(s.instanceStarts, instance.ID)
@@ -727,7 +727,7 @@ func main() {
 	flag.Parse()
 
 	log.Printf("Starting Orzbob Cloud Control Plane v%s", version)
-	
+
 	// Log environment variables for debugging
 	runnerImage := os.Getenv("RUNNER_IMAGE")
 	if runnerImage != "" {
@@ -781,15 +781,15 @@ func main() {
 	<-sigCh
 
 	log.Println("Shutting down...")
-	
+
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	if err := httpServer.Shutdown(ctx); err != nil {
 		log.Printf("HTTP server shutdown error: %v", err)
 	}
-	
+
 	// Stop billing service and flush pending usage
 	if server.meteringService != nil {
 		log.Println("Stopping billing service...")

@@ -18,31 +18,31 @@ import (
 
 // Helper to create instance with unique org ID
 func createInstanceWithUniqueOrg(t *testing.T, tier string) (*CreateInstanceResponse, func()) {
-	req, _ := http.NewRequest("POST", baseURL+"/v1/instances", 
+	req, _ := http.NewRequest("POST", baseURL+"/v1/instances",
 		bytes.NewBufferString(fmt.Sprintf(`{"tier": "%s"}`, tier)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Org-ID", fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano()))
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to create instance: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("Failed to create instance: %d - %s", resp.StatusCode, body)
 	}
-	
+
 	var createResp CreateInstanceResponse
 	json.NewDecoder(resp.Body).Decode(&createResp)
-	
+
 	// Return cleanup function
 	cleanup := func() {
 		req, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+createResp.ID, nil)
 		http.DefaultClient.Do(req)
 	}
-	
+
 	return &createResp, cleanup
 }
 
@@ -57,7 +57,7 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", bytes.NewBufferString(`{"tier": "small"}`))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Org-ID", fmt.Sprintf("test-lifecycle-%d", time.Now().UnixNano()))
-		
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
@@ -73,7 +73,7 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to list instances: %v", err)
 		}
-		
+
 		var listResp struct {
 			Instances []struct {
 				ID     string `json:"id"`
@@ -99,7 +99,7 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get instance: %v", err)
 		}
-		
+
 		var instance struct {
 			ID        string `json:"id"`
 			Status    string `json:"status"`
@@ -116,7 +116,7 @@ func TestE2EInstanceLifecycle(t *testing.T) {
 			resp, _ = http.Get(baseURL + "/v1/instances/" + instanceID)
 			json.NewDecoder(resp.Body).Decode(&instance)
 			resp.Body.Close()
-			
+
 			if instance.Status == "Running" {
 				break
 			}
@@ -187,7 +187,7 @@ func TestE2EInstanceWithSecrets(t *testing.T) {
 				"API_KEY": "secret-key-123",
 			},
 		}
-		
+
 		reqBody, _ := json.Marshal(secretData)
 		resp, err := http.Post(baseURL+"/v1/secrets", "application/json", bytes.NewBuffer(reqBody))
 		if err != nil {
@@ -200,13 +200,13 @@ func TestE2EInstanceWithSecrets(t *testing.T) {
 			"tier":    "small",
 			"secrets": []string{"test-api-secret"},
 		}
-		
+
 		reqBody, _ = json.Marshal(instanceReq)
 		resp, err = http.Post(baseURL+"/v1/instances", "application/json", bytes.NewBuffer(reqBody))
 		if err != nil {
 			t.Fatalf("Failed to create instance with secrets: %v", err)
 		}
-		
+
 		var createResp CreateInstanceResponse
 		json.NewDecoder(resp.Body).Decode(&createResp)
 		resp.Body.Close()
@@ -233,7 +233,7 @@ func TestE2EInstanceWithSecrets(t *testing.T) {
 			resp, _ = http.Get(baseURL + "/v1/instances/" + createResp.ID)
 			json.NewDecoder(resp.Body).Decode(&instance)
 			resp.Body.Close()
-			
+
 			if instance.Status == "Running" {
 				break
 			}
@@ -242,7 +242,7 @@ func TestE2EInstanceWithSecrets(t *testing.T) {
 
 		if instance.Status == "Running" {
 			// Verify secret is mounted in pod
-			cmd := exec.Command("kubectl", "exec", "-n", instance.Namespace, instance.PodName, 
+			cmd := exec.Command("kubectl", "exec", "-n", instance.Namespace, instance.PodName,
 				"--", "cat", "/etc/secrets/test-api-secret/API_KEY")
 			output, err := cmd.CombinedOutput()
 			if err == nil && strings.TrimSpace(string(output)) == "secret-key-123" {
@@ -255,7 +255,7 @@ func TestE2EInstanceWithSecrets(t *testing.T) {
 		// Cleanup
 		req, _ := http.NewRequest("DELETE", baseURL+"/v1/instances/"+createResp.ID, nil)
 		http.DefaultClient.Do(req)
-		
+
 		req, _ = http.NewRequest("DELETE", baseURL+"/v1/secrets/test-api-secret", nil)
 		http.DefaultClient.Do(req)
 	})
@@ -277,22 +277,22 @@ func TestE2ETierDifferences(t *testing.T) {
 		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Org-ID", orgID)
-		
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create %s instance: %v", tier, err)
 		}
-		
+
 		if resp.StatusCode != http.StatusCreated {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			t.Fatalf("Failed to create %s instance: %d - %s", tier, resp.StatusCode, body)
 		}
-		
+
 		var createResp CreateInstanceResponse
 		json.NewDecoder(resp.Body).Decode(&createResp)
 		resp.Body.Close()
-		
+
 		instances[tier] = createResp.ID
 	}
 
@@ -311,15 +311,15 @@ func TestE2ETierDifferences(t *testing.T) {
 			resp, _ := http.Get(baseURL + "/v1/instances/" + instanceID)
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			
+
 			// Decode from the body bytes
 			json.Unmarshal(body, &instance)
-			
+
 			// Log the raw response for debugging
 			if i == 0 {
 				t.Logf("Raw response for tier %s: %s", tier, string(body))
 			}
-			
+
 			if instance.Status == "Running" {
 				break
 			}
@@ -334,7 +334,7 @@ func TestE2ETierDifferences(t *testing.T) {
 			if err == nil {
 				t.Logf("%s tier pod resources: %s", tier, string(output))
 			}
-			
+
 			// Check pod labels for debugging
 			cmd = exec.Command("kubectl", "get", "pod", instance.PodName, "-n", instance.Namespace,
 				"-o", "jsonpath={.metadata.labels}")
@@ -376,7 +376,7 @@ func TestE2EInvalidRequests(t *testing.T) {
 	}
 
 	orgID := fmt.Sprintf("test-invalid-%d", time.Now().UnixNano())
-	
+
 	tests := []struct {
 		name           string
 		method         string
@@ -437,11 +437,11 @@ func TestE2EInvalidRequests(t *testing.T) {
 			} else {
 				req, _ = http.NewRequest(tt.method, baseURL+tt.path, nil)
 			}
-			
+
 			for k, v := range tt.headers {
 				req.Header.Set(k, v)
 			}
-			
+
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
@@ -474,7 +474,7 @@ func TestE2EConcurrentOperations(t *testing.T) {
 				req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Org-ID", fmt.Sprintf("concurrent-test-%d", idx))
-				
+
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
 					errors <- err
@@ -531,12 +531,12 @@ func TestE2EAttachURLValidation(t *testing.T) {
 		req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Org-ID", orgID)
-		
+
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
-		
+
 		var createResp CreateInstanceResponse
 		json.NewDecoder(resp.Body).Decode(&createResp)
 		resp.Body.Close()
@@ -545,11 +545,11 @@ func TestE2EAttachURLValidation(t *testing.T) {
 		if createResp.AttachURL == "" {
 			t.Error("AttachURL is empty")
 		}
-		
+
 		if !strings.Contains(createResp.AttachURL, createResp.ID) {
 			t.Error("AttachURL should contain instance ID")
 		}
-		
+
 		if !strings.Contains(createResp.AttachURL, "token=") {
 			t.Error("AttachURL should contain authentication token")
 		}
@@ -605,13 +605,13 @@ func TestE2EMetricsAccuracy(t *testing.T) {
 		// Create and delete 3 instances
 		instanceIDs := []string{}
 		orgID := fmt.Sprintf("test-metrics-%d", time.Now().UnixNano())
-		
+
 		for i := 0; i < 3; i++ {
 			reqBody := bytes.NewBufferString(`{"tier": "small"}`)
 			req, _ := http.NewRequest("POST", baseURL+"/v1/instances", reqBody)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Org-ID", orgID)
-			
+
 			resp, _ := http.DefaultClient.Do(req)
 			var createResp CreateInstanceResponse
 			json.NewDecoder(resp.Body).Decode(&createResp)
@@ -636,7 +636,7 @@ func TestE2EMetricsAccuracy(t *testing.T) {
 		if finalCreated-initialCreated != 3 {
 			t.Errorf("Expected 3 more instances created, got %d", finalCreated-initialCreated)
 		}
-		
+
 		if finalDeleted-initialDeleted != 3 {
 			t.Errorf("Expected 3 more instances deleted, got %d", finalDeleted-initialDeleted)
 		}

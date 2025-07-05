@@ -34,7 +34,7 @@ func main() {
 		"tier": "small",
 	}
 	createBody, _ := json.Marshal(createReq)
-	
+
 	resp, err := http.Post("http://localhost:8080/v1/instances", "application/json", bytes.NewBuffer(createBody))
 	if err != nil {
 		log.Fatalf("Failed to create instance: %v", err)
@@ -53,7 +53,7 @@ func main() {
 
 	// Send heartbeats
 	heartbeatURL := fmt.Sprintf("http://localhost:8080/v1/instances/%s/heartbeat", instanceID)
-	
+
 	for i := 0; i < 3; i++ {
 		resp, err := http.Post(heartbeatURL, "application/json", bytes.NewBuffer([]byte("{}")))
 		if err != nil {
@@ -61,13 +61,13 @@ func main() {
 			continue
 		}
 		resp.Body.Close()
-		
+
 		if resp.StatusCode == http.StatusNoContent {
 			log.Printf("Heartbeat %d sent successfully", i+1)
 		} else {
 			log.Printf("Heartbeat %d failed with status: %d", i+1, resp.StatusCode)
 		}
-		
+
 		time.Sleep(5 * time.Second)
 	}
 

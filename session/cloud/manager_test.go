@@ -16,13 +16,13 @@ func TestCloudInstanceConversion(t *testing.T) {
 			AttachURL: "ws://example.com/attach",
 		},
 	}
-	
+
 	sessionInstances := ConvertToSessionInstances(cloudInstances)
-	
+
 	if len(sessionInstances) != 1 {
 		t.Fatalf("Expected 1 instance, got %d", len(sessionInstances))
 	}
-	
+
 	inst := sessionInstances[0]
 	if !inst.IsCloud {
 		t.Error("Expected IsCloud to be true")
