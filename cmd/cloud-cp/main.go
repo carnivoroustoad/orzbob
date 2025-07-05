@@ -400,8 +400,37 @@ func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate JWT token for attachment (valid for 2 minutes)
+	token, err := s.tokenManager.GenerateToken(instance.ID, 2*time.Minute)
+	if err != nil {
+		log.Printf("Failed to generate token: %v", err)
+		writeError(w, http.StatusInternalServerError, "Failed to generate access token")
+		return
+	}
+
+	// Build attach URL with token
+	// Convert http to ws scheme
+	baseURL := s.baseURL
+	if strings.HasPrefix(baseURL, "http://") {
+		baseURL = "ws://" + strings.TrimPrefix(baseURL, "http://")
+	} else if strings.HasPrefix(baseURL, "https://") {
+		baseURL = "wss://" + strings.TrimPrefix(baseURL, "https://")
+	}
+	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s", 
+		baseURL, instance.ID, url.QueryEscape(token))
+
+	// Create response with instance data and attach URL
+	resp := map[string]interface{}{
+		"id":         instance.ID,
+		"status":     instance.Status,
+		"tier":       instance.Tier,
+		"created_at": instance.CreatedAt,
+		"attach_url": attachURL,
+		"labels":     instance.Labels,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // handleDeleteInstance handles delete instance requests
