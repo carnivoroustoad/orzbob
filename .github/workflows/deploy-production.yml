@@ -257,7 +257,19 @@ jobs:
           done
           
           # List built artifacts
+          echo "=== Built artifacts ==="
           ls -la dist/
+          echo "=== Archive contents ==="
+          for archive in dist/*.tar.gz dist/*.zip; do
+            if [ -f "$archive" ]; then
+              echo "Contents of $archive:"
+              if [[ $archive == *.zip ]]; then
+                unzip -l "$archive" || true
+              else
+                tar -tzf "$archive" || true
+              fi
+            fi
+          done
       
       - name: Generate changelog
         id: changelog
@@ -331,18 +343,52 @@ jobs:
           draft: false
           prerelease: false
       
-      - name: Upload Release Assets
-        run: |
-          # Upload all archives
-          for file in dist/*.tar.gz dist/*.zip; do
-            if [ -f "$file" ]; then
-              echo "Uploading $file..."
-              asset_name=$(basename "$file")
-              
-              curl -X POST \
-                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"$file" \
-                "${{ steps.create_release.outputs.upload_url }}?name=${asset_name}"
-            fi
-          done
+      - name: Upload Linux AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/orzbob_${{ steps.get_version.outputs.VERSION }}_linux_amd64.tar.gz
+          asset_name: orzbob_${{ steps.get_version.outputs.VERSION }}_linux_amd64.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Linux ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/orzbob_${{ steps.get_version.outputs.VERSION }}_linux_arm64.tar.gz
+          asset_name: orzbob_${{ steps.get_version.outputs.VERSION }}_linux_arm64.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Darwin AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/orzbob_${{ steps.get_version.outputs.VERSION }}_darwin_amd64.tar.gz
+          asset_name: orzbob_${{ steps.get_version.outputs.VERSION }}_darwin_amd64.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Darwin ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/orzbob_${{ steps.get_version.outputs.VERSION }}_darwin_arm64.tar.gz
+          asset_name: orzbob_${{ steps.get_version.outputs.VERSION }}_darwin_arm64.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Windows AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/orzbob_${{ steps.get_version.outputs.VERSION }}_windows_amd64.zip
+          asset_name: orzbob_${{ steps.get_version.outputs.VERSION }}_windows_amd64.zip
+          asset_content_type: application/zip
