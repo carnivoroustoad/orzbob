@@ -1,0 +1,90 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"sync"
+	"time"
+)
+
+var (
+	userStore     = make(map[string]*User)
+	userStoreMu   sync.RWMutex
+	userStoreFile = "/tmp/orzbob-users.json"
+)
+
+func init() {
+	// Load users from file on startup
+	loadUserStore()
+}
+
+func loadUserStore() {
+	file, err := os.Open(userStoreFile)
+	if err != nil {
+		return // File doesn't exist yet
+	}
+	defer file.Close()
+	
+	userStoreMu.Lock()
+	defer userStoreMu.Unlock()
+	
+	json.NewDecoder(file).Decode(&userStore)
+}
+
+func saveUserStore() {
+	userStoreMu.RLock()
+	defer userStoreMu.RUnlock()
+	
+	file, err := os.Create(userStoreFile)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	
+	json.NewEncoder(file).Encode(userStore)
+}
+
+func getUserByID(id string) (*User, error) {
+	userStoreMu.RLock()
+	defer userStoreMu.RUnlock()
+	
+	user, ok := userStore[id]
+	if !ok {
+		return nil, fmt.Errorf("user not found")
+	}
+	
+	return user, nil
+}
+
+func getOrCreateUser(githubID int64, login, email string) (*User, error) {
+	userID := fmt.Sprintf("user-%d", githubID)
+	
+	userStoreMu.Lock()
+	defer userStoreMu.Unlock()
+	
+	// Check if user exists
+	if user, ok := userStore[userID]; ok {
+		// Update login/email if changed
+		user.Login = login
+		user.Email = email
+		saveUserStore()
+		return user, nil
+	}
+	
+	// Create new user
+	user := &User{
+		ID:       userID,
+		GitHubID: githubID,
+		Login:    login,
+		Email:    email,
+		OrgID:    fmt.Sprintf("gh-%d", githubID),
+		Plan:     "free",
+		Created:  time.Now(),
+	}
+	
+	userStore[userID] = user
+	saveUserStore()
+	
+	return user, nil
+}

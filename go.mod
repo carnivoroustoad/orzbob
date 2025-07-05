@@ -39,6 +39,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
+	github.com/cli/browser v1.0.0 // indirect
+	github.com/cli/oauth v1.2.0 // indirect
+	github.com/cli/safeexec v1.0.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

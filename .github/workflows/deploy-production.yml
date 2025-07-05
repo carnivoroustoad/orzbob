@@ -129,7 +129,7 @@ jobs:
       - name: Verify deployment
         run: |
           # Wait for rollout to complete
-          kubectl rollout status deployment/orzbob-cloud-cp \
+          kubectl rollout status deployment/orzbob-cloud-orzbob-cp \
             --namespace=${{ env.DEPLOY_NAMESPACE }} \
             --timeout=5m
           
@@ -139,14 +139,14 @@ jobs:
           # Check billing configuration
           echo "Checking billing configuration..."
           kubectl exec -n ${{ env.DEPLOY_NAMESPACE }} \
-            deployment/orzbob-cloud-cp -- \
+            deployment/orzbob-cloud-orzbob-cp -- \
             sh -c 'if [ "$BILLING_ENABLED" = "true" ]; then echo "✓ Billing is enabled"; else echo "✗ Billing is disabled"; fi'
       
       - name: Run smoke tests
         run: |
           # Port forward to the service
           kubectl port-forward -n ${{ env.DEPLOY_NAMESPACE }} \
-            svc/orzbob-cloud-cp 8080:80 &
+            svc/orzbob-cloud-orzbob-cp 8080:80 &
           PF_PID=$!
           
           # Wait for port forward

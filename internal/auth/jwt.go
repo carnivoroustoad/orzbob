@@ -22,9 +22,10 @@ type TokenManager struct {
 // Claims represents the JWT claims for instance attachment
 type Claims struct {
 	jwt.RegisteredClaims
-	InstanceID string `json:"instance_id"`
+	InstanceID string `json:"instance_id,omitempty"`
 	UserID     string `json:"user_id,omitempty"`
 	Tier       string `json:"tier,omitempty"`
+	Type       string `json:"type"` // "instance" or "user"
 }
 
 // NewTokenManager creates a new token manager with a generated ES256 key pair
@@ -97,6 +98,7 @@ func (tm *TokenManager) GenerateToken(instanceID string, duration time.Duration)
 			ID:        fmt.Sprintf("%d", now.UnixNano()),
 		},
 		InstanceID: instanceID,
+		Type:       "instance",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
@@ -106,6 +108,26 @@ func (tm *TokenManager) GenerateToken(instanceID string, duration time.Duration)
 	}
 
 	return signedToken, nil
+}
+
+// GenerateUserToken creates a JWT token for API authentication
+func (tm *TokenManager) GenerateUserToken(userID string, duration time.Duration) (string, error) {
+	now := time.Now()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    tm.issuer,
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
+			NotBefore: jwt.NewNumericDate(now),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ID:        fmt.Sprintf("user-%d", now.UnixNano()),
+		},
+		UserID: userID,
+		Type:   "user",
+	}
+	
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	return token.SignedString(tm.privateKey)
 }
 
 // ValidateToken validates a JWT token and returns the claims

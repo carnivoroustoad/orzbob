@@ -232,8 +232,14 @@ func (s *Server) setupRoutes() {
 	// Metrics endpoint
 	s.router.Handle("/metrics", promhttp.Handler())
 
-	// API routes
+	// Auth endpoints (no auth required)
+	s.router.Post("/v1/auth/exchange", s.handleAuthExchange)
+
+	// API routes (auth required)
 	s.router.Route("/v1", func(r chi.Router) {
+		// Apply auth middleware
+		r.Use(s.authMiddleware)
+		
 		// Instance management
 		r.Post("/instances", s.handleCreateInstance)
 		r.Get("/instances/{id}", s.handleGetInstance)
@@ -250,6 +256,9 @@ func (s *Server) setupRoutes() {
 		
 		// Billing
 		r.Get("/billing", s.handleGetBilling)
+		
+		// User info
+		r.Get("/user", s.handleGetUser)
 	})
 }
 
@@ -272,12 +281,14 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Extract organization ID from context (would come from auth middleware in production)
-	// For now, use a default org for testing
-	orgID := r.Header.Get("X-Org-ID")
-	if orgID == "" {
-		orgID = "default-org"
+	// Get authenticated user from context
+	user, err := getUserFromContext(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Authentication required")
+		return
 	}
+	
+	orgID := user.OrgID
 
 	// Check quota
 	s.quotaMu.Lock()
@@ -494,8 +505,14 @@ func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request) {
 	// For now, return mock data
 	// TODO: Integrate with actual billing manager when available
 	
-	// Get organization from auth context (placeholder)
-	orgID := "default-org" // TODO: Get from JWT claims
+	// Get authenticated user from context
+	user, err := getUserFromContext(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+	
+	orgID := user.OrgID
 	
 	// Mock billing data
 	billingInfo := map[string]interface{}{

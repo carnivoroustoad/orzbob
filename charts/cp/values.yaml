@@ -32,7 +32,7 @@ securityContext:
     - ALL
 
 service:
-  type: ClusterIP
+  type: LoadBalancer
   port: 80
   targetPort: 8080
 
