@@ -125,12 +125,50 @@ var cloudAttachCmd = &cobra.Command{
 				parsedURL.RawQuery = "" // Remove query params, we'll add token separately
 				wsURL = parsedURL.String()
 			} else {
-				// Treat as instance ID
+				// Treat as instance ID - need to get attach URL from API
 				instanceID := arg
-				wsURL = fmt.Sprintf("ws://localhost:8080/v1/instances/%s/attach", instanceID)
-				// For direct instance ID, we'll need to get a JWT token somehow
-				// For now, we'll pass empty token and let the server handle it
-				jwtToken = ""
+				
+				// Get instance details from API to get attach URL
+				apiURL := os.Getenv("ORZBOB_API_URL")
+				if apiURL == "" {
+					apiURL = "http://api.orzbob.com"
+				}
+				
+				token, err := loadToken()
+				if err != nil {
+					return fmt.Errorf("not logged in: %v\nRun 'orz login' first", err)
+				}
+				
+				req, err := http.NewRequest("GET", apiURL+"/v1/instances/"+instanceID, nil)
+				if err != nil {
+					return err
+				}
+				req.Header.Set("Authorization", "Bearer " + token)
+				
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					return fmt.Errorf("failed to get instance: %w", err)
+				}
+				defer resp.Body.Close()
+				
+				if resp.StatusCode != http.StatusOK {
+					return fmt.Errorf("instance not found")
+				}
+				
+				var instance struct {
+					ID        string `json:"id"`
+					AttachURL string `json:"attach_url"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
+					return fmt.Errorf("failed to decode response: %w", err)
+				}
+				
+				if instance.AttachURL == "" {
+					return fmt.Errorf("no attach URL available for instance")
+				}
+				
+				// Use the attach URL from the API
+				return attachToInstance(instance.AttachURL)
 			}
 		} else {
 			return fmt.Errorf("instance ID or attach URL required")
@@ -153,11 +191,56 @@ var cloudListCmd = &cobra.Command{
 			return fmt.Errorf("not logged in, run 'orz login' first")
 		}
 
-		// Fake response - hardcoded stub
-		fmt.Printf("Cloud instances (token: %s...):\n", token[:10])
-		fmt.Println("ID              STATUS    TIER     CREATED")
-		fmt.Println("runner-abc123   running   small    2025-06-21T10:00:00Z")
-		fmt.Println("runner-def456   stopped   medium   2025-06-21T09:00:00Z")
+		// Call API to get instances
+		apiURL := os.Getenv("ORZBOB_API_URL")
+		if apiURL == "" {
+			apiURL = "http://api.orzbob.com"
+		}
+
+		req, err := http.NewRequest("GET", apiURL+"/v1/instances", nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer " + token)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to list instances: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			var errResp struct {
+				Error string `json:"error"`
+			}
+			json.NewDecoder(resp.Body).Decode(&errResp)
+			return fmt.Errorf("failed to list instances: %s", errResp.Error)
+		}
+
+		var instances []struct {
+			ID        string    `json:"id"`
+			Status    string    `json:"status"`
+			Tier      string    `json:"tier"`
+			CreatedAt time.Time `json:"created_at"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&instances); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		if len(instances) == 0 {
+			fmt.Println("No cloud instances found")
+			return nil
+		}
+
+		fmt.Println("ID                    STATUS    TIER     CREATED")
+		for _, inst := range instances {
+			fmt.Printf("%-20s  %-8s  %-7s  %s\n", 
+				inst.ID, 
+				inst.Status, 
+				inst.Tier, 
+				inst.CreatedAt.Format("2006-01-02 15:04:05"))
+		}
 		return nil
 	},
 }
@@ -174,10 +257,33 @@ var cloudKillCmd = &cobra.Command{
 
 		instanceID := args[0]
 
-		// Fake response
-		fmt.Printf("Terminating instance %s...\n", instanceID)
-		fmt.Printf("Token: %s...\n", token[:10])
-		fmt.Printf("Instance %s terminated\n", instanceID)
+		// Call API to terminate instance
+		apiURL := os.Getenv("ORZBOB_API_URL")
+		if apiURL == "" {
+			apiURL = "http://api.orzbob.com"
+		}
+
+		req, err := http.NewRequest("DELETE", apiURL+"/v1/instances/"+instanceID, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer " + token)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to terminate instance: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+			var errResp struct {
+				Error string `json:"error"`
+			}
+			json.NewDecoder(resp.Body).Decode(&errResp)
+			return fmt.Errorf("failed to terminate instance: %s", errResp.Error)
+		}
+
+		fmt.Printf("✅ Instance %s terminated\n", instanceID)
 		return nil
 	},
 }
