@@ -240,6 +240,7 @@ func TestJWTAttachValidation(t *testing.T) {
 		router:         chi.NewRouter(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
+		instanceStarts: make(map[string]time.Time),
 		freeQuota:      2,
 	}
 	server.setupRoutes()
@@ -380,6 +381,7 @@ func TestInstanceCreationWithJWT(t *testing.T) {
 		router:         chi.NewRouter(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
+		instanceStarts: make(map[string]time.Time),
 		freeQuota:      2,
 	}
 	server.setupRoutes()
