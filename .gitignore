@@ -7,3 +7,10 @@ claude-squad
 .env
 .env.*
 !.env.example
+
+# Binary files
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
