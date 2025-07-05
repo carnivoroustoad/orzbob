@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"orzbob/internal/auth"
 	"orzbob/internal/cloud/provider"
+	"orzbob/internal/tunnel"
 )
 
 func TestQuotaEnforcement(t *testing.T) {
@@ -27,6 +28,7 @@ func TestQuotaEnforcement(t *testing.T) {
 		provider:       fp,
 		tokenManager:   tm,
 		router:         chi.NewRouter(),
+		wsProxy:        tunnel.NewWSProxy(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
 		instanceStarts: make(map[string]time.Time),
@@ -144,8 +146,10 @@ func TestQuotaDecrementOnDelete(t *testing.T) {
 		provider:       fp,
 		tokenManager:   tm,
 		router:         chi.NewRouter(),
+		wsProxy:        tunnel.NewWSProxy(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
+		instanceStarts: make(map[string]time.Time),
 		freeQuota:      2,
 	}
 	server.setupRoutes()

@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"orzbob/internal/auth"
 	"orzbob/internal/cloud/provider"
+	"orzbob/internal/tunnel"
 )
 
 type timeProvider interface {
@@ -238,6 +239,7 @@ func TestJWTAttachValidation(t *testing.T) {
 		provider:       fp,
 		tokenManager:   tm,
 		router:         chi.NewRouter(),
+		wsProxy:        tunnel.NewWSProxy(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
 		instanceStarts: make(map[string]time.Time),
@@ -379,6 +381,7 @@ func TestInstanceCreationWithJWT(t *testing.T) {
 		provider:       fp,
 		tokenManager:   tm,
 		router:         chi.NewRouter(),
+		wsProxy:        tunnel.NewWSProxy(),
 		heartbeats:     make(map[string]time.Time),
 		instanceCounts: make(map[string]int),
 		instanceStarts: make(map[string]time.Time),
