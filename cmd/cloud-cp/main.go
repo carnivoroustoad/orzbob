@@ -241,6 +241,9 @@ func (s *Server) setupRoutes() {
 
 	// Auth endpoints (no auth required)
 	s.router.Post("/v1/auth/exchange", s.handleAuthExchange)
+	
+	// WebSocket endpoints (token auth handled internally)
+	s.router.Get("/v1/instances/{id}/attach", s.handleWSAttach)
 
 	// API routes (auth required)
 	s.router.Route("/v1", func(r chi.Router) {
@@ -252,7 +255,6 @@ func (s *Server) setupRoutes() {
 		r.Get("/instances/{id}", s.handleGetInstance)
 		r.Delete("/instances/{id}", s.handleDeleteInstance)
 		r.Get("/instances", s.handleListInstances)
-		r.Get("/instances/{id}/attach", s.handleWSAttach)
 		r.Post("/instances/{id}/heartbeat", s.handleHeartbeat)
 		
 		// Secrets management
@@ -454,10 +456,12 @@ func (s *Server) handleListInstances(w http.ResponseWriter, r *http.Request) {
 // handleWSAttach handles WebSocket attach requests
 func (s *Server) handleWSAttach(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	log.Printf("WebSocket attach request for instance %s", id)
 	
 	// Get token from query parameter
 	token := r.URL.Query().Get("token")
 	if token == "" {
+		log.Printf("Missing token for WebSocket attach to instance %s", id)
 		writeError(w, http.StatusUnauthorized, "Missing authentication token")
 		return
 	}
