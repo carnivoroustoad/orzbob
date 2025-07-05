@@ -175,3 +175,165 @@ jobs:
           else
             echo "❌ Deployment failed!"
           fi
+
+  release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+          cache: true
+      
+      - name: Get version
+        id: get_version
+        run: |
+          # Get the latest tag or generate a new version
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
+          # Extract version numbers
+          MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | sed 's/v//')
+          MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+          PATCH=$(echo $LATEST_TAG | cut -d. -f3)
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          
+          # Create new version
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version: $LATEST_TAG"
+          echo "New version: v$VERSION"
+      
+      - name: Build binaries
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Build for multiple platforms
+          for OS in linux darwin windows; do
+            for ARCH in amd64 arm64; do
+              # Skip windows/arm64
+              if [ "$OS" = "windows" ] && [ "$ARCH" = "arm64" ]; then
+                continue
+              fi
+              
+              echo "Building for $OS/$ARCH..."
+              
+              # Set binary name
+              BINARY_NAME="orz"
+              if [ "$OS" = "windows" ]; then
+                BINARY_NAME="${BINARY_NAME}.exe"
+              fi
+              
+              # Build
+              GOOS=$OS GOARCH=$ARCH go build \
+                -ldflags "-X main.version=$VERSION -X main.gitCommit=${{ github.sha }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                -o "dist/orz-${OS}-${ARCH}/${BINARY_NAME}" \
+                ./main.go
+              
+              # Create tarball/zip
+              if [ "$OS" = "windows" ]; then
+                (cd dist && zip -r "orz-${OS}-${ARCH}.zip" "orz-${OS}-${ARCH}")
+              else
+                (cd dist && tar -czf "orz-${OS}-${ARCH}.tar.gz" "orz-${OS}-${ARCH}")
+              fi
+            done
+          done
+          
+          # List built artifacts
+          ls -la dist/
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            CHANGES=$(git log --pretty=format:"- %s" --no-merges | head -20)
+          else
+            CHANGES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+          fi
+          
+          # Save to file and output for use in release
+          echo "$CHANGES" > changelog.txt
+          
+          # Escape for GitHub Actions
+          CHANGES="${CHANGES//'%'/'%25'}"
+          CHANGES="${CHANGES//$'\n'/'%0A'}"
+          CHANGES="${CHANGES//$'\r'/'%0D'}"
+          echo "CHANGES=$CHANGES" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          release_name: Release v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## 🚀 Orzbob Cloud Release
+            
+            ### What's Changed
+            ${{ steps.changelog.outputs.CHANGES }}
+            
+            ### Docker Images
+            - Control Plane: `${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp:${{ github.sha }}`
+            
+            ### Installation
+            
+            #### Quick Install (Recommended)
+            ```bash
+            curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+            
+            #### Manual Download
+            ```bash
+            # macOS/Linux
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/orz-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar xz
+            sudo mv orz-*/orz /usr/local/bin/
+            ```
+            
+            ### Getting Started
+            ```bash
+            # Login to Orzbob Cloud
+            orz login
+            
+            # Create your first cloud development instance
+            orz cloud new --tier small
+            
+            # List your instances
+            orz cloud list
+            ```
+            
+            ### Supported Platforms
+            - macOS (Intel & Apple Silicon)
+            - Linux (x86_64 & ARM64)
+            - Windows (x86_64)
+          draft: false
+          prerelease: false
+      
+      - name: Upload Release Assets
+        run: |
+          # Upload all archives
+          for file in dist/*.tar.gz dist/*.zip; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file..."
+              asset_name=$(basename "$file")
+              
+              curl -X POST \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file" \
+                "${{ steps.create_release.outputs.upload_url }}?name=${asset_name}"
+            fi
+          done

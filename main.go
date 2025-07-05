@@ -20,7 +20,9 @@ import (
 )
 
 var (
-	version     = "1.0.0"
+	version     = "dev"
+	gitCommit   = "unknown"
+	buildDate   = "unknown"
 	programFlag string
 	autoYesFlag bool
 	daemonFlag  bool
@@ -159,7 +161,13 @@ var (
 		Short: "Print the version number of orz",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("orz version %s\n", version)
-			fmt.Printf("https://github.com/carnivoroustoad/orzbob/releases/tag/v%s\n", version)
+			if gitCommit != "unknown" {
+				fmt.Printf("  commit: %s\n", gitCommit)
+			}
+			if buildDate != "unknown" {
+				fmt.Printf("  built: %s\n", buildDate)
+			}
+			fmt.Printf("  https://github.com/carnivoroustoad/orzbob/releases/tag/v%s\n", version)
 		},
 	}
 )
