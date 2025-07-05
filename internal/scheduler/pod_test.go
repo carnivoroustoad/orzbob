@@ -57,12 +57,12 @@ func TestPodSpecBuilder_Build(t *testing.T) {
 
 				// Check resources
 				cpuReq := container.Resources.Requests[corev1.ResourceCPU]
-				if cpuReq.Cmp(resource.MustParse("2")) != 0 {
-					t.Errorf("expected CPU request 2, got %v", cpuReq)
+				if cpuReq.Cmp(resource.MustParse("500m")) != 0 {
+					t.Errorf("expected CPU request 500m, got %v", cpuReq)
 				}
 				memReq := container.Resources.Requests[corev1.ResourceMemory]
-				if memReq.Cmp(resource.MustParse("4Gi")) != 0 {
-					t.Errorf("expected memory request 4Gi, got %v", memReq)
+				if memReq.Cmp(resource.MustParse("1Gi")) != 0 {
+					t.Errorf("expected memory request 1Gi, got %v", memReq)
 				}
 
 				// Check volumes (should be 2: workspace and cache)
@@ -108,12 +108,12 @@ func TestPodSpecBuilder_Build(t *testing.T) {
 				// Check resources for medium tier
 				container := pod.Spec.Containers[0]
 				cpuReq := container.Resources.Requests[corev1.ResourceCPU]
-				if cpuReq.Cmp(resource.MustParse("4")) != 0 {
-					t.Errorf("expected CPU request 4, got %v", cpuReq)
+				if cpuReq.Cmp(resource.MustParse("1")) != 0 {
+					t.Errorf("expected CPU request 1, got %v", cpuReq)
 				}
 				memReq := container.Resources.Requests[corev1.ResourceMemory]
-				if memReq.Cmp(resource.MustParse("8Gi")) != 0 {
-					t.Errorf("expected memory request 8Gi, got %v", memReq)
+				if memReq.Cmp(resource.MustParse("2Gi")) != 0 {
+					t.Errorf("expected memory request 2Gi, got %v", memReq)
 				}
 			},
 		},
@@ -147,12 +147,12 @@ func TestPodSpecBuilder_Build(t *testing.T) {
 
 				// Check GPU tier resources
 				cpuReq := container.Resources.Requests[corev1.ResourceCPU]
-				if cpuReq.Cmp(resource.MustParse("8")) != 0 {
-					t.Errorf("expected CPU request 8, got %v", cpuReq)
+				if cpuReq.Cmp(resource.MustParse("4")) != 0 {
+					t.Errorf("expected CPU request 4, got %v", cpuReq)
 				}
 				memReq := container.Resources.Requests[corev1.ResourceMemory]
-				if memReq.Cmp(resource.MustParse("24Gi")) != 0 {
-					t.Errorf("expected memory request 24Gi, got %v", memReq)
+				if memReq.Cmp(resource.MustParse("8Gi")) != 0 {
+					t.Errorf("expected memory request 8Gi, got %v", memReq)
 				}
 			},
 		},
@@ -216,10 +216,11 @@ func TestGetTierResources(t *testing.T) {
 		expectedCPU    string
 		expectedMemory string
 	}{
-		{"small", "2", "4Gi"},
-		{"medium", "4", "8Gi"},
-		{"gpu", "8", "24Gi"},
-		{"unknown", "2", "4Gi"}, // default
+		{"small", "500m", "1Gi"},
+		{"medium", "1", "2Gi"},
+		{"large", "2", "4Gi"},
+		{"gpu", "4", "8Gi"},
+		{"unknown", "500m", "1Gi"}, // default
 	}
 
 	for _, tt := range tests {
