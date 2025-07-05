@@ -74,7 +74,7 @@ config:
   kubeconfig: ""
   logLevel: info
   baseURL: "http://54.224.5.131"
-  runnerImage: "runner:latest"
+  runnerImage: "ghcr.io/carnivoroustoad/orzbob/runner:latest"
 
 # RBAC configuration
 rbac:
