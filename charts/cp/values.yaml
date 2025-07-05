@@ -73,6 +73,8 @@ config:
   provider: kind
   kubeconfig: ""
   logLevel: info
+  baseURL: "http://54.224.5.131"
+  runnerImage: "runner:latest"
 
 # RBAC configuration
 rbac:

@@ -90,13 +90,19 @@ func NewServer(p provider.Provider) *Server {
 		log.Fatalf("Failed to create token manager: %v", err)
 	}
 
+	// Get base URL from environment
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+
 	s := &Server{
 		provider:       p,
 		router:         chi.NewRouter(),
 		wsProxy:        tunnel.NewWSProxy(),
 		heartbeats:     make(map[string]time.Time),
 		tokenManager:   tokenManager,
-		baseURL:        "http://localhost:8080", // Default, can be overridden
+		baseURL:        baseURL,
 		instanceCounts: make(map[string]int),
 		freeQuota:      3, // Free tier allows 3 instances for testing
 		instanceStarts: make(map[string]time.Time),
@@ -358,9 +364,12 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build attach URL with token
+	// Convert http to ws scheme
 	baseURL := s.baseURL
-	if baseURL == "" {
-		baseURL = "ws://localhost:8080"
+	if strings.HasPrefix(baseURL, "http://") {
+		baseURL = "ws://" + strings.TrimPrefix(baseURL, "http://")
+	} else if strings.HasPrefix(baseURL, "https://") {
+		baseURL = "wss://" + strings.TrimPrefix(baseURL, "https://")
 	}
 	attachURL := fmt.Sprintf("%s/v1/instances/%s/attach?token=%s", 
 		baseURL, instance.ID, url.QueryEscape(token))
