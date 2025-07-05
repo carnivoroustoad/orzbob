@@ -342,15 +342,15 @@ func CreateConfigMap(name, namespace string, scripts map[string]string) *corev1.
 func getTierResources(tier string) (cpu, memory string) {
 	switch tier {
 	case "small":
-		return "2", "4Gi"
+		return "500m", "1Gi"
 	case "medium":
-		return "4", "8Gi"
+		return "1", "2Gi"
 	case "large":
-		return "8", "16Gi"
-	case "gpu":
-		return "8", "24Gi"
-	default:
 		return "2", "4Gi"
+	case "gpu":
+		return "4", "8Gi"
+	default:
+		return "500m", "1Gi"
 	}
 }
 
