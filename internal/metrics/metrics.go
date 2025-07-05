@@ -48,4 +48,22 @@ var (
 		Help:    "Duration of HTTP requests in seconds",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"method", "endpoint", "status"})
+
+	// InstancesPaused tracks instances paused by throttle service
+	InstancesPaused = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "orzbob_instances_paused_total",
+		Help: "The total number of instances paused by throttle service",
+	}, []string{"reason"})
+
+	// ThrottledInstances tracks currently throttled instances
+	ThrottledInstances = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "orzbob_throttled_instances",
+		Help: "The number of currently throttled instances",
+	}, []string{"reason"})
+
+	// DailyUsageHours tracks daily usage hours per organization
+	DailyUsageHours = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "orzbob_daily_usage_hours",
+		Help: "Daily usage hours per organization",
+	}, []string{"org_id"})
 )

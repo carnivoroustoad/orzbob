@@ -1,0 +1,90 @@
+# Polar.sh Configuration for Orzbob Cloud
+# This file documents the required Polar.sh setup
+
+project:
+  name: "Orzbob Cloud"
+  description: "Cloud development environments powered by AI"
+  website: "https://orzbob.cloud"
+
+products:
+  - id: "free-tier"
+    name: "Free Tier"
+    description: "Perfect for trying out Orzbob Cloud"
+    price: 
+      amount: 0
+      currency: "USD"
+      interval: "month"
+    features:
+      - "10 hours/month included"
+      - "Small instances only (2 CPU, 4GB RAM)"
+      - "Community support"
+      - "30-minute idle timeout"
+    visibility: "public"
+
+  - id: "base-plus-usage"
+    name: "Base + Usage"
+    description: "$20/month includes 200 small-tier hours"
+    price:
+      amount: 2000  # $20.00
+      currency: "USD"
+      interval: "month"
+    features:
+      - "200 small-tier hours/month included"
+      - "All instance tiers available"
+      - "Priority support"
+      - "60-minute idle timeout"
+      - "Pay-as-you-go for additional usage"
+    visibility: "public"
+    
+  - id: "usage-only"
+    name: "Usage Only (Hidden)"
+    description: "Pay only for what you use"
+    price:
+      amount: 0
+      currency: "USD"
+      interval: "month"
+    features:
+      - "No monthly fee"
+      - "Pay-as-you-go pricing"
+      - "All instance tiers"
+    visibility: "private"  # Hidden product
+
+metering:
+  # Usage meter for tracking compute hours
+  meter_id: "orzbob_compute_hours"
+  meter_name: "Compute Hours"
+  aggregation: "sum"
+  
+  # Pricing per hour by tier (in cents)
+  rates:
+    small: 8.3     # $0.083/hour
+    medium: 16.7   # $0.167/hour  
+    large: 33.3    # $0.333/hour
+    gpu: 208.0     # $2.08/hour
+
+webhooks:
+  # Webhook endpoints to configure in Polar
+  - event: "subscription.created"
+    url: "https://api.orzbob.cloud/webhooks/polar/subscription-created"
+  - event: "subscription.updated"
+    url: "https://api.orzbob.cloud/webhooks/polar/subscription-updated"
+  - event: "subscription.canceled"
+    url: "https://api.orzbob.cloud/webhooks/polar/subscription-canceled"
+  - event: "invoice.created"
+    url: "https://api.orzbob.cloud/webhooks/polar/invoice-created"
+  - event: "invoice.paid"
+    url: "https://api.orzbob.cloud/webhooks/polar/invoice-paid"
+
+environment_variables:
+  # Required environment variables
+  - name: "POLAR_API_KEY"
+    description: "Polar API key for authentication"
+    example: "polar_sk_1234567890"
+    
+  - name: "POLAR_WEBHOOK_SECRET"
+    description: "Secret for webhook signature verification"
+    example: "whsec_1234567890"
+    
+  - name: "POLAR_PROJECT_ID"
+    description: "Polar project ID"
+    example: "proj_1234567890"

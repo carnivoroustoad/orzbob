@@ -21,6 +21,10 @@ docker-build-runner:
 test:
 	go test ./...
 
+# Run billing tests
+test-billing:
+	go test ./internal/billing/... -v
+
 # Clean build artifacts
 clean:
 	rm -rf bin/

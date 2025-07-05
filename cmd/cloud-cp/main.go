@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"orzbob/internal/auth"
+	"orzbob/internal/billing"
 	"orzbob/internal/cloud/provider"
 	"orzbob/internal/metrics"
 	"orzbob/internal/tunnel"
@@ -72,6 +73,13 @@ type Server struct {
 	instanceCounts map[string]int
 	quotaMu        sync.RWMutex
 	freeQuota      int // Max instances for free tier
+	
+	// Billing
+	meteringService *billing.MeteringService
+	
+	// Instance tracking for usage calculation
+	instanceStarts map[string]time.Time
+	startsMu       sync.RWMutex
 }
 
 // NewServer creates a new control plane server
@@ -91,7 +99,24 @@ func NewServer(p provider.Provider) *Server {
 		baseURL:        "http://localhost:8080", // Default, can be overridden
 		instanceCounts: make(map[string]int),
 		freeQuota:      3, // Free tier allows 3 instances for testing
+		instanceStarts: make(map[string]time.Time),
 	}
+	
+	// Initialize billing if configured
+	billingConfig := billing.LoadConfigOptional()
+	if billingConfig.IsConfigured() {
+		meteringService, err := billing.NewMeteringService(billingConfig)
+		if err != nil {
+			log.Printf("Failed to create metering service: %v", err)
+		} else {
+			s.meteringService = meteringService
+			s.meteringService.Start(context.Background())
+			log.Println("Billing metering service started")
+		}
+	} else {
+		log.Println("Billing not configured, running without metering")
+	}
+	
 	s.setupRoutes()
 	
 	// Start idle reaper
@@ -222,6 +247,9 @@ func (s *Server) setupRoutes() {
 		r.Get("/secrets/{name}", s.handleGetSecret)
 		r.Delete("/secrets/{name}", s.handleDeleteSecret)
 		r.Get("/secrets", s.handleListSecrets)
+		
+		// Billing
+		r.Get("/billing", s.handleGetBilling)
 	})
 }
 
@@ -302,6 +330,11 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 	// Store org ID in instance metadata for deletion tracking
 	instance.Labels["org-id"] = orgID
 	
+	// Track instance start time for billing
+	s.startsMu.Lock()
+	s.instanceStarts[instance.ID] = time.Now()
+	s.startsMu.Unlock()
+	
 	// Increment metrics
 	metrics.InstancesCreated.Inc()
 
@@ -358,6 +391,9 @@ func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Instance not found")
 		return
 	}
+	
+	// Record usage before deletion
+	s.recordInstanceUsage(instance)
 	
 	// Delete the instance
 	if err := s.provider.DeleteInstance(r.Context(), id); err != nil {
@@ -453,6 +489,43 @@ func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleGetBilling handles billing information requests
+func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request) {
+	// For now, return mock data
+	// TODO: Integrate with actual billing manager when available
+	
+	// Get organization from auth context (placeholder)
+	orgID := "default-org" // TODO: Get from JWT claims
+	
+	// Mock billing data
+	billingInfo := map[string]interface{}{
+		"organization":    orgID,
+		"plan":           "Base + Usage ($20/mo)",
+		"hours_used":     142.5,
+		"hours_included": 200.0,
+		"percent_used":   71,
+		"in_overage":     false,
+		"reset_date":     time.Now().AddDate(0, 0, 9).Format(time.RFC3339),
+		"estimated_bill": 20.00,
+		"daily_usage":    "5h 23m",
+		"throttle_status": "OK - No limits exceeded",
+	}
+	
+	// TODO: When billing manager is available, use:
+	// if s.billingManager != nil {
+	//     usage, err := s.billingManager.GetUsage(orgID)
+	//     if err == nil {
+	//         billingInfo["hours_used"] = usage.UsedHours
+	//         billingInfo["hours_included"] = usage.IncludedHours
+	//         billingInfo["percent_used"] = int(usage.PercentUsed)
+	//         billingInfo["in_overage"] = usage.InOverage
+	//     }
+	// }
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(billingInfo)
+}
+
 // startIdleReaper periodically checks for idle instances and deletes them
 func (s *Server) startIdleReaper() {
 	ticker := time.NewTicker(1 * time.Minute)
@@ -499,6 +572,9 @@ func (s *Server) reapIdleInstances() {
 	for _, instance := range toDelete {
 		log.Printf("Reaping idle instance %s", instance.ID)
 		
+		// Record usage before deletion
+		s.recordInstanceUsage(&instance)
+		
 		// Delete the instance
 		if err := s.provider.DeleteInstance(ctx, instance.ID); err != nil {
 			log.Printf("Failed to delete idle instance %s: %v", instance.ID, err)
@@ -522,6 +598,53 @@ func (s *Server) reapIdleInstances() {
 			metrics.InstancesDeleted.Inc()
 		}
 	}
+}
+
+// recordInstanceUsage records usage when an instance is stopped/deleted
+func (s *Server) recordInstanceUsage(instance *provider.Instance) {
+	// Skip if billing is not configured
+	if s.meteringService == nil {
+		return
+	}
+	
+	// Get start time
+	s.startsMu.RLock()
+	startTime, exists := s.instanceStarts[instance.ID]
+	s.startsMu.RUnlock()
+	
+	if !exists {
+		// Use creation time if start time not tracked
+		startTime = instance.CreatedAt
+	}
+	
+	// Calculate runtime in minutes
+	runtime := time.Since(startTime)
+	minutes := int(runtime.Minutes())
+	
+	// Don't record if less than 1 minute
+	if minutes < 1 {
+		return
+	}
+	
+	// Get org ID and customer ID
+	orgID, ok := instance.Labels["org-id"]
+	if !ok || orgID == "" {
+		log.Printf("Instance %s missing org-id label, skipping usage recording", instance.ID)
+		return
+	}
+	
+	// For now, use org ID as customer ID
+	// TODO: Map org ID to Polar customer ID from subscription
+	customerID := orgID
+	
+	// Record usage
+	s.meteringService.RecordUsage(orgID, customerID, minutes, instance.Tier)
+	log.Printf("Recorded usage for instance %s: %d minutes of %s tier", instance.ID, minutes, instance.Tier)
+	
+	// Clean up start time tracking
+	s.startsMu.Lock()
+	delete(s.instanceStarts, instance.ID)
+	s.startsMu.Unlock()
 }
 
 // writeError writes an error response
@@ -605,6 +728,12 @@ func main() {
 	
 	if err := httpServer.Shutdown(ctx); err != nil {
 		log.Printf("HTTP server shutdown error: %v", err)
+	}
+	
+	// Stop billing service and flush pending usage
+	if server.meteringService != nil {
+		log.Println("Stopping billing service...")
+		server.meteringService.Stop()
 	}
 
 	log.Println("Shutdown complete")

@@ -1,0 +1,172 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  REGISTRY: ghcr.io
+  DEPLOY_NAMESPACE: orzbob-system
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push control plane image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.cloud-cp
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Setup Kubernetes
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
+          echo "KUBECONFIG=/tmp/kubeconfig" >> $GITHUB_ENV
+          
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+      
+      - name: Create namespace
+        run: |
+          kubectl create namespace ${{ env.DEPLOY_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Create Polar billing secrets
+        if: ${{ secrets.POLAR_API_KEY != '' }}
+        run: |
+          kubectl create secret generic polar-credentials \
+            --from-literal=api-key="${{ secrets.POLAR_API_KEY }}" \
+            --from-literal=project-id="${{ secrets.POLAR_PROJECT_ID }}" \
+            --from-literal=webhook-secret="${{ secrets.POLAR_WEBHOOK_SECRET }}" \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Label the secret for tracking
+          kubectl label secret polar-credentials \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            app.kubernetes.io/managed-by=github-actions \
+            app.kubernetes.io/instance=orzbob-cloud \
+            --overwrite
+      
+      - name: Create email configuration secret
+        if: ${{ secrets.SMTP_HOST != '' }}
+        run: |
+          kubectl create secret generic email-config \
+            --from-literal=smtp-host="${{ secrets.SMTP_HOST }}" \
+            --from-literal=smtp-port="${{ secrets.SMTP_PORT }}" \
+            --from-literal=smtp-username="${{ secrets.SMTP_USERNAME }}" \
+            --from-literal=smtp-password="${{ secrets.SMTP_PASSWORD }}" \
+            --from-literal=from-address="${{ secrets.EMAIL_FROM_ADDRESS }}" \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Label the secret
+          kubectl label secret email-config \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            app.kubernetes.io/managed-by=github-actions \
+            app.kubernetes.io/instance=orzbob-cloud \
+            --overwrite
+      
+      - name: Deploy with Helm
+        run: |
+          # Update dependencies
+          helm dependency update ./charts/cp
+          
+          # Deploy or upgrade
+          helm upgrade --install orzbob-cloud ./charts/cp \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp \
+            --set image.tag=${{ github.sha }} \
+            --set billing.enabled=${{ secrets.POLAR_API_KEY != '' }} \
+            --set billing.existingSecret=polar-credentials \
+            --set email.enabled=${{ secrets.SMTP_HOST != '' }} \
+            --set email.existingSecret=email-config \
+            --set ingress.enabled=true \
+            --set ingress.hosts[0].host=api.orzbob.cloud \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=Prefix \
+            --wait \
+            --timeout=10m
+      
+      - name: Verify deployment
+        run: |
+          # Wait for rollout to complete
+          kubectl rollout status deployment/orzbob-cloud-cp \
+            --namespace=${{ env.DEPLOY_NAMESPACE }} \
+            --timeout=5m
+          
+          # Check pod status
+          kubectl get pods -n ${{ env.DEPLOY_NAMESPACE }} -l app.kubernetes.io/instance=orzbob-cloud
+          
+          # Check billing configuration
+          echo "Checking billing configuration..."
+          kubectl exec -n ${{ env.DEPLOY_NAMESPACE }} \
+            deployment/orzbob-cloud-cp -- \
+            sh -c 'if [ "$BILLING_ENABLED" = "true" ]; then echo "✓ Billing is enabled"; else echo "✗ Billing is disabled"; fi'
+      
+      - name: Run smoke tests
+        run: |
+          # Port forward to the service
+          kubectl port-forward -n ${{ env.DEPLOY_NAMESPACE }} \
+            svc/orzbob-cloud-cp 8080:80 &
+          PF_PID=$!
+          
+          # Wait for port forward
+          sleep 5
+          
+          # Test health endpoint
+          echo "Testing health endpoint..."
+          curl -f http://localhost:8080/health || exit 1
+          
+          # Test billing endpoint (if enabled)
+          if [ "${{ secrets.POLAR_API_KEY }}" != "" ]; then
+            echo "Testing billing endpoint..."
+            curl -f http://localhost:8080/v1/billing || echo "Billing endpoint returned error (expected if no auth)"
+          fi
+          
+          # Clean up
+          kill $PF_PID || true
+      
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "Image: ${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp:${{ github.sha }}"
+            echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          else
+            echo "❌ Deployment failed!"
+          fi
