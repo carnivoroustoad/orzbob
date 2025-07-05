@@ -89,7 +89,7 @@ func TestQuotaEnforcement(t *testing.T) {
 		}
 		
 		var createResp CreateInstanceResponse
-		json.NewDecoder(resp.Body).Decode(&createResp)
+		_ = json.NewDecoder(resp.Body).Decode(&createResp)
 		t.Logf("Created first instance: %s", createResp.ID)
 	})
 	
@@ -111,7 +111,7 @@ func TestQuotaEnforcement(t *testing.T) {
 		}
 		
 		var createResp CreateInstanceResponse
-		json.NewDecoder(resp.Body).Decode(&createResp)
+		_ = json.NewDecoder(resp.Body).Decode(&createResp)
 		t.Logf("Created second instance: %s", createResp.ID)
 	})
 	
@@ -133,7 +133,7 @@ func TestQuotaEnforcement(t *testing.T) {
 		}
 		
 		var errResp ErrorResponse
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		t.Logf("Error response: %s", errResp.Error)
 		
 		if errResp.Error != "Quota exceeded: maximum 2 instances allowed for free tier" {
@@ -159,7 +159,7 @@ func TestQuotaEnforcement(t *testing.T) {
 		}
 		
 		var createResp CreateInstanceResponse
-		json.NewDecoder(resp.Body).Decode(&createResp)
+		_ = json.NewDecoder(resp.Body).Decode(&createResp)
 		t.Logf("Created instance for different org: %s", createResp.ID)
 	})
 }
@@ -213,7 +213,7 @@ func TestQuotaDecrementOnDelete(t *testing.T) {
 		}
 		
 		var createResp CreateInstanceResponse
-		json.NewDecoder(resp.Body).Decode(&createResp)
+		_ = json.NewDecoder(resp.Body).Decode(&createResp)
 		instanceIDs = append(instanceIDs, createResp.ID)
 		t.Logf("Created instance %d: %s", i+1, createResp.ID)
 	}

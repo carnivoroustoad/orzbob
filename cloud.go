@@ -330,8 +330,13 @@ func doLogin(cmd *cobra.Command, args []string) error {
 	fmt.Println("🔐 Starting GitHub authentication...")
 	
 	// Create OAuth flow
+	githubHost, err := oauth.NewGitHubHost("https://github.com")
+	if err != nil {
+		return fmt.Errorf("failed to create GitHub host: %w", err)
+	}
+	
 	flow := &oauth.Flow{
-		Host:     oauth.GitHubHost("https://github.com"),
+		Host:     githubHost,
 		ClientID: clientID,
 		Scopes:   []string{"read:user", "user:email"},
 	}
@@ -476,7 +481,7 @@ func exchangeToken(githubToken string, user *OrzbobUser) (string, error) {
 		var errResp struct {
 			Error string `json:"error"`
 		}
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		return "", fmt.Errorf("API error: %s", errResp.Error)
 	}
 	

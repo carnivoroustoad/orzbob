@@ -29,15 +29,9 @@ func loadUserStore() {
 	userStoreMu.Lock()
 	defer userStoreMu.Unlock()
 	
-	json.NewDecoder(file).Decode(&userStore)
+	_ = json.NewDecoder(file).Decode(&userStore)
 }
 
-func saveUserStore() {
-	userStoreMu.RLock()
-	defer userStoreMu.RUnlock()
-	
-	saveUserStoreUnlocked()
-}
 
 // saveUserStoreUnlocked saves the user store without acquiring locks
 // Must be called while holding at least a read lock
@@ -48,7 +42,7 @@ func saveUserStoreUnlocked() {
 	}
 	defer file.Close()
 	
-	json.NewEncoder(file).Encode(userStore)
+	_ = json.NewEncoder(file).Encode(userStore)
 }
 
 func getUserByID(id string) (*User, error) {

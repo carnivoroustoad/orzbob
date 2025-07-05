@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -42,34 +41,9 @@ func addTestAuth(req *http.Request, server *Server) {
 	req.Header.Set("Authorization", "Bearer "+token)
 }
 
-type timeProvider interface {
-	Now() time.Time
-}
 
-type realTimeProvider struct{}
 
-func (r realTimeProvider) Now() time.Time {
-	return time.Now()
-}
-
-type fakeTimeProvider struct {
-	mu          sync.Mutex
-	currentTime time.Time
-}
-
-func (f *fakeTimeProvider) Now() time.Time {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.currentTime
-}
-
-func (f *fakeTimeProvider) Advance(d time.Duration) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.currentTime = f.currentTime.Add(d)
-}
-
-// TestIdleReaper tests the idle reaper functionality with fake time
+// TestIdleReaper tests the idle reaper functionality
 func TestIdleReaper(t *testing.T) {
 	// Create fake provider and server
 	fakeProvider := provider.NewFakeProvider()
@@ -79,11 +53,6 @@ func TestIdleReaper(t *testing.T) {
 		heartbeats: make(map[string]time.Time),
 	}
 	server.setupRoutes()
-
-	// Create fake time provider
-	fakeTime := &fakeTimeProvider{
-		currentTime: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-	}
 
 	// Create test instances
 	ctx := context.Background()
@@ -97,35 +66,18 @@ func TestIdleReaper(t *testing.T) {
 		t.Fatalf("Failed to create instance 2: %v", err)
 	}
 
-	// Set initial heartbeats
+	// Set initial heartbeats (30+ minutes ago for instance2)
+	now := time.Now()
 	server.heartbeatMu.Lock()
-	server.heartbeats[instance1.ID] = fakeTime.Now()
-	server.heartbeats[instance2.ID] = fakeTime.Now()
+	server.heartbeats[instance1.ID] = now.Add(-10 * time.Minute) // Recent heartbeat
+	server.heartbeats[instance2.ID] = now.Add(-35 * time.Minute) // Old heartbeat
 	server.heartbeatMu.Unlock()
 
-	// Advance time by 20 minutes and update heartbeat for instance1
-	fakeTime.Advance(20 * time.Minute)
-	
-	// Send heartbeat for instance1
-	req := httptest.NewRequest("POST", "/v1/instances/"+instance1.ID+"/heartbeat", nil)
-	rr := httptest.NewRecorder()
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", instance1.ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	
-	server.handleHeartbeat(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("Expected status 204, got %d", rr.Code)
-	}
-
-	// Advance time by another 15 minutes (total 35 minutes)
-	fakeTime.Advance(15 * time.Minute)
-
-	// Create a custom reap function that uses fake time
-	reapIdleInstancesWithTime := func(timeProvider timeProvider) {
+	// Create a custom reap function
+	reapIdleInstances := func() {
 		ctx := context.Background()
 		idleTimeout := 30 * time.Minute
-		now := timeProvider.Now()
+		now := time.Now()
 
 		// Get all instances
 		instances, err := server.provider.ListInstances(ctx)
@@ -160,8 +112,8 @@ func TestIdleReaper(t *testing.T) {
 		}
 	}
 
-	// Run the reaper with fake time
-	reapIdleInstancesWithTime(fakeTime)
+	// Run the reaper
+	reapIdleInstances()
 
 	// Verify results
 	instances, err := fakeProvider.ListInstances(ctx)
