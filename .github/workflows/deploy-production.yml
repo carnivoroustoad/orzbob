@@ -237,7 +237,7 @@ jobs:
               GOOS=$OS GOARCH=$ARCH go build \
                 -ldflags "-X main.version=$VERSION -X main.gitCommit=${{ github.sha }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                 -o "dist/orz-${OS}-${ARCH}/${BINARY_NAME}" \
-                ./main.go
+                .
               
               # Create tarball/zip
               if [ "$OS" = "windows" ]; then
