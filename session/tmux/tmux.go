@@ -40,6 +40,11 @@ type TmuxSession struct {
 	// monitor monitors the tmux pane content and sends signals to the UI when it's status changes
 	monitor *statusMonitor
 
+	// WebSocket connection for cloud instances
+	wsClient     io.ReadWriteCloser
+	isWebSocket  bool
+	reconnectURL string
+
 	// Initialized by Attach
 	// Deinitilaized by Detach
 	//
@@ -192,6 +197,10 @@ func (t *TmuxSession) TapDAndEnter() error {
 }
 
 func (t *TmuxSession) SendKeys(keys string) error {
+	if t.isWebSocket && t.wsClient != nil {
+		_, err := t.wsClient.Write([]byte(keys))
+		return err
+	}
 	_, err := t.ptmx.Write([]byte(keys))
 	return err
 }
@@ -233,7 +242,12 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 	// all the other ones.
 	go func() {
 		defer t.wg.Done()
-		_, _ = io.Copy(os.Stdout, t.ptmx)
+		if t.isWebSocket && t.wsClient != nil {
+			// For WebSocket, copy from wsClient to stdout
+			_, _ = io.Copy(os.Stdout, t.wsClient)
+		} else {
+			_, _ = io.Copy(os.Stdout, t.ptmx)
+		}
 	}()
 
 	go func() {
@@ -276,8 +290,12 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 				return
 			}
 
-			// Forward other input to tmux
-			_, _ = t.ptmx.Write(buf[:nr])
+			// Forward other input to tmux or WebSocket
+			if t.isWebSocket && t.wsClient != nil {
+				_, _ = t.wsClient.Write(buf[:nr])
+			} else {
+				_, _ = t.ptmx.Write(buf[:nr])
+			}
 		}
 	}()
 
@@ -430,4 +448,57 @@ func CleanupSessions() error {
 		}
 	}
 	return nil
+}
+
+// WSAttach attaches to a cloud instance via WebSocket
+func (t *TmuxSession) WSAttach(wsClient io.ReadWriteCloser, reconnectURL string) error {
+	t.wsClient = wsClient
+	t.isWebSocket = true
+	t.reconnectURL = reconnectURL
+	t.monitor = newStatusMonitor()
+	
+	// For WebSocket connections, we don't have a real PTY
+	// Create a pipe to simulate PTY behavior for compatibility
+	r, w, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("failed to create pipe: %w", err)
+	}
+	t.ptmx = w
+	
+	// Start goroutine to copy WebSocket data to pipe
+	go func() {
+		defer r.Close()
+		defer w.Close()
+		io.Copy(w, wsClient)
+	}()
+	
+	return nil
+}
+
+// IsConnected returns whether the WebSocket is still connected
+func (t *TmuxSession) IsConnected() bool {
+	if !t.isWebSocket || t.wsClient == nil {
+		return true // Local sessions are always "connected"
+	}
+	
+	// Try to write a ping to test connection
+	// This is a simplified check - in production you'd want proper ping/pong
+	return t.wsClient != nil
+}
+
+// Reconnect attempts to reconnect a WebSocket session
+func (t *TmuxSession) Reconnect() error {
+	if !t.isWebSocket || t.reconnectURL == "" {
+		return fmt.Errorf("not a WebSocket session")
+	}
+	
+	// Close existing connection
+	if t.wsClient != nil {
+		t.wsClient.Close()
+		t.wsClient = nil
+	}
+	
+	// This would need the cloud manager to reconnect
+	// For now, return an error indicating reconnection is needed
+	return fmt.Errorf("reconnection required - use cloud manager")
 }

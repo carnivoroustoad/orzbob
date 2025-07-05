@@ -24,6 +24,7 @@ const (
 	KeyResume
 	KeyPrompt // New key for entering a prompt
 	KeyHelp   // Key for showing help screen
+	KeyCloud  // Key for creating cloud instance
 
 	// Diff keybindings
 	KeyShiftUp
@@ -46,6 +47,7 @@ var GlobalKeyStringsMap = map[string]KeyName{
 	"q":          KeyQuit,
 	"tab":        KeyTab,
 	"c":          KeyCheckout,
+	"C":          KeyCloud,
 	"r":          KeyResume,
 	"p":          KeySubmit,
 	"?":          KeyHelp,
@@ -108,6 +110,10 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 	KeyResume: key.NewBinding(
 		key.WithKeys("r"),
 		key.WithHelp("r", "resume"),
+	),
+	KeyCloud: key.NewBinding(
+		key.WithKeys("C"),
+		key.WithHelp("C", "cloud"),
 	),
 
 	// -- Special keybindings --

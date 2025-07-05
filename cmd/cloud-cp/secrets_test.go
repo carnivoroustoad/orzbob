@@ -29,6 +29,7 @@ func TestSecretEndpoints(t *testing.T) {
 		body, _ := json.Marshal(secretData)
 		req := httptest.NewRequest("POST", "/v1/secrets", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
+		addTestAuth(req, server)
 		rr := httptest.NewRecorder()
 		
 		server.router.ServeHTTP(rr, req)
@@ -50,6 +51,7 @@ func TestSecretEndpoints(t *testing.T) {
 	// Test 2: Get a secret
 	t.Run("GetSecret", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/v1/secrets/test-secret", nil)
+		addTestAuth(req, server)
 		rr := httptest.NewRecorder()
 		
 		server.router.ServeHTTP(rr, req)
@@ -71,6 +73,7 @@ func TestSecretEndpoints(t *testing.T) {
 	// Test 3: List secrets
 	t.Run("ListSecrets", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/v1/secrets", nil)
+		addTestAuth(req, server)
 		rr := httptest.NewRecorder()
 		
 		server.router.ServeHTTP(rr, req)
@@ -99,6 +102,7 @@ func TestSecretEndpoints(t *testing.T) {
 		body, _ := json.Marshal(instanceData)
 		req := httptest.NewRequest("POST", "/v1/instances", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
+		addTestAuth(req, server)
 		rr := httptest.NewRecorder()
 		
 		server.router.ServeHTTP(rr, req)
@@ -132,6 +136,7 @@ func TestSecretEndpoints(t *testing.T) {
 	// Test 5: Delete secret
 	t.Run("DeleteSecret", func(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/v1/secrets/test-secret", nil)
+		addTestAuth(req, server)
 		rr := httptest.NewRecorder()
 		
 		server.router.ServeHTTP(rr, req)
@@ -142,6 +147,7 @@ func TestSecretEndpoints(t *testing.T) {
 		
 		// Verify secret is deleted
 		req = httptest.NewRequest("GET", "/v1/secrets/test-secret", nil)
+		addTestAuth(req, server)
 		rr = httptest.NewRecorder()
 		server.router.ServeHTTP(rr, req)
 		
@@ -183,6 +189,7 @@ func TestSecretValidation(t *testing.T) {
 			body, _ := json.Marshal(tt.request)
 			req := httptest.NewRequest("POST", "/v1/secrets", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
+			addTestAuth(req, server)
 			rr := httptest.NewRecorder()
 			
 			server.router.ServeHTTP(rr, req)

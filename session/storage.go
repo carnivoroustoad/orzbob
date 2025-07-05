@@ -22,6 +22,13 @@ type InstanceData struct {
 	Program   string          `json:"program"`
 	Worktree  GitWorktreeData `json:"worktree"`
 	DiffStats DiffStatsData   `json:"diff_stats"`
+	
+	// Cloud instance fields
+	IsCloud         bool   `json:"is_cloud"`
+	CloudInstanceID string `json:"cloud_instance_id"`
+	AttachURL       string `json:"attach_url"`
+	CloudTier       string `json:"cloud_tier"`
+	CloudStatus     string `json:"cloud_status"`
 }
 
 // GitWorktreeData represents the serializable data of a GitWorktree

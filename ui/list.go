@@ -14,6 +14,7 @@ import (
 const readyIcon = "● "
 const pausedIcon = "⏸ "
 const promptIcon = "⧗ "
+const cloudIcon = "☁️ "
 
 var readyStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.AdaptiveColor{Light: "#51bd73", Dark: "#51bd73"})
@@ -145,6 +146,12 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 
 	// Cut the title if it's too long
 	titleText := i.Title
+	
+	// Add cloud icon if it's a cloud instance
+	if i.IsCloud {
+		titleText = cloudIcon + titleText
+	}
+	
 	widthAvail := r.width - 3 - len(prefix) - 1
 	if widthAvail > 0 && widthAvail < len(titleText) && len(titleText) >= widthAvail-3 {
 		titleText = titleText[:widthAvail-3] + "..."
@@ -189,7 +196,14 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 	remainingWidth -= diffWidth
 
 	branch := i.Branch
-	if i.Started() && hasMultipleRepos {
+	
+	// For cloud instances, show tier and status
+	if i.IsCloud {
+		branch = fmt.Sprintf("[%s]", i.CloudTier)
+		if i.CloudStatus != "" && i.CloudStatus != "Running" {
+			branch = fmt.Sprintf("[%s - %s]", i.CloudTier, i.CloudStatus)
+		}
+	} else if i.Started() && hasMultipleRepos {
 		repoName, err := i.RepoName()
 		if err != nil {
 			log.ErrorLog.Printf("could not get repo name in instance renderer: %v", err)

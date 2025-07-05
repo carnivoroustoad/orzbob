@@ -19,6 +19,29 @@ import (
 	"orzbob/internal/tunnel"
 )
 
+// testUser represents a test user for authentication
+var testUser = User{
+	ID:       "test-user",
+	Email:    "test@example.com",
+	Login:    "testuser",
+	OrgID:    "test-org",
+	GitHubID: 123456,
+	Plan:     "free",
+	Created:  time.Now(),
+}
+
+// addTestAuth adds authentication headers to a test request
+func addTestAuth(req *http.Request, server *Server) {
+	// Store test user in the user store
+	userStoreMu.Lock()
+	userStore[testUser.ID] = &testUser
+	userStoreMu.Unlock()
+	
+	// Generate a test token for the user
+	token, _ := server.tokenManager.GenerateUserToken(testUser.ID, 1*time.Hour)
+	req.Header.Set("Authorization", "Bearer "+token)
+}
+
 type timeProvider interface {
 	Now() time.Time
 }
@@ -177,6 +200,7 @@ func TestHeartbeatEndpoint(t *testing.T) {
 
 	// Test heartbeat endpoint
 	req := httptest.NewRequest("POST", "/v1/instances/"+instance.ID+"/heartbeat", nil)
+	addTestAuth(req, server)
 	rr := httptest.NewRecorder()
 	
 	// Add route parameters
@@ -205,6 +229,7 @@ func TestHeartbeatEndpoint(t *testing.T) {
 
 	// Test heartbeat for non-existent instance
 	req = httptest.NewRequest("POST", "/v1/instances/non-existent/heartbeat", nil)
+	addTestAuth(req, server)
 	rr = httptest.NewRecorder()
 	
 	rctx = chi.NewRouteContext()
@@ -262,6 +287,7 @@ func TestJWTAttachValidation(t *testing.T) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Org-ID", "test-org-jwt-validation")
+	addTestAuth(req, server)
 	
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -404,6 +430,7 @@ func TestInstanceCreationWithJWT(t *testing.T) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Org-ID", "test-org-instance-creation")
+	addTestAuth(req, server)
 	
 	client := &http.Client{}
 	resp, err := client.Do(req)

@@ -53,6 +53,18 @@ type Instance struct {
 	AutoYes bool
 	// Prompt is the initial prompt to pass to the instance on startup
 	Prompt string
+	
+	// Cloud instance fields
+	// IsCloud indicates if this is a cloud instance
+	IsCloud bool
+	// CloudInstanceID is the ID of the cloud instance
+	CloudInstanceID string
+	// AttachURL is the WebSocket URL for attaching to the cloud instance
+	AttachURL string
+	// CloudTier is the tier of the cloud instance (small, medium, large)
+	CloudTier string
+	// CloudStatus is the cloud instance status (running, stopped, etc)
+	CloudStatus string
 
 	// DiffStats stores the current git diff statistics
 	diffStats *git.DiffStats
@@ -69,16 +81,21 @@ type Instance struct {
 // ToInstanceData converts an Instance to its serializable form
 func (i *Instance) ToInstanceData() InstanceData {
 	data := InstanceData{
-		Title:     i.Title,
-		Path:      i.Path,
-		Branch:    i.Branch,
-		Status:    i.Status,
-		Height:    i.Height,
-		Width:     i.Width,
-		CreatedAt: i.CreatedAt,
-		UpdatedAt: time.Now(),
-		Program:   i.Program,
-		AutoYes:   i.AutoYes,
+		Title:           i.Title,
+		Path:            i.Path,
+		Branch:          i.Branch,
+		Status:          i.Status,
+		Height:          i.Height,
+		Width:           i.Width,
+		CreatedAt:       i.CreatedAt,
+		UpdatedAt:       time.Now(),
+		Program:         i.Program,
+		AutoYes:         i.AutoYes,
+		IsCloud:         i.IsCloud,
+		CloudInstanceID: i.CloudInstanceID,
+		AttachURL:       i.AttachURL,
+		CloudTier:       i.CloudTier,
+		CloudStatus:     i.CloudStatus,
 	}
 
 	// Only include worktree data if gitWorktree is initialized
@@ -107,14 +124,19 @@ func (i *Instance) ToInstanceData() InstanceData {
 // FromInstanceData creates a new Instance from serialized data
 func FromInstanceData(data InstanceData) (*Instance, error) {
 	instance := &Instance{
-		Title:     data.Title,
-		Path:      data.Path,
-		Branch:    data.Branch,
-		Status:    data.Status,
-		Height:    data.Height,
-		Width:     data.Width,
-		CreatedAt: data.CreatedAt,
-		UpdatedAt: data.UpdatedAt,
+		Title:           data.Title,
+		Path:            data.Path,
+		Branch:          data.Branch,
+		Status:          data.Status,
+		Height:          data.Height,
+		Width:           data.Width,
+		CreatedAt:       data.CreatedAt,
+		UpdatedAt:       data.UpdatedAt,
+		IsCloud:         data.IsCloud,
+		CloudInstanceID: data.CloudInstanceID,
+		AttachURL:       data.AttachURL,
+		CloudTier:       data.CloudTier,
+		CloudStatus:     data.CloudStatus,
 		Program:   data.Program,
 		gitWorktree: git.NewGitWorktreeFromStorage(
 			data.Worktree.RepoPath,
