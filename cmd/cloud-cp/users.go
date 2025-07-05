@@ -36,6 +36,12 @@ func saveUserStore() {
 	userStoreMu.RLock()
 	defer userStoreMu.RUnlock()
 	
+	saveUserStoreUnlocked()
+}
+
+// saveUserStoreUnlocked saves the user store without acquiring locks
+// Must be called while holding at least a read lock
+func saveUserStoreUnlocked() {
 	file, err := os.Create(userStoreFile)
 	if err != nil {
 		return
@@ -68,7 +74,7 @@ func getOrCreateUser(githubID int64, login, email string) (*User, error) {
 		// Update login/email if changed
 		user.Login = login
 		user.Email = email
-		saveUserStore()
+		saveUserStoreUnlocked() // Use unlocked version since we hold the write lock
 		return user, nil
 	}
 	
@@ -84,7 +90,7 @@ func getOrCreateUser(githubID int64, login, email string) (*User, error) {
 	}
 	
 	userStore[userID] = user
-	saveUserStore()
+	saveUserStoreUnlocked() // Use unlocked version since we hold the write lock
 	
 	return user, nil
 }

@@ -233,18 +233,24 @@ func doLogin(cmd *cobra.Command, args []string) error {
 	}
 	
 	// Verify token by getting user info
+	fmt.Printf("✅ GitHub authentication successful!\n")
+	fmt.Printf("   Getting user info...\n")
 	user, err := getCurrentUser(accessToken.Token)
 	if err != nil {
 		return fmt.Errorf("failed to verify authentication: %w", err)
 	}
+	fmt.Printf("   GitHub user: %s\n", user.Login)
 	
 	// Exchange GitHub token for Orzbob API token
+	fmt.Printf("   Exchanging token with API...\n")
 	apiToken, err := exchangeToken(accessToken.Token, user)
 	if err != nil {
 		// For now, use the GitHub token as the API token (for testing)
 		fmt.Printf("⚠️  Warning: API exchange failed, using fallback mode\n")
 		fmt.Printf("   Error: %v\n", err)
 		apiToken = accessToken.Token
+	} else {
+		fmt.Printf("   API token received!\n")
 	}
 	
 	// Save both tokens
