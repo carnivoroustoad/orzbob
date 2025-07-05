@@ -108,7 +108,8 @@ func TestEmailService_SendBudgetAlert(t *testing.T) {
 
 	// This would normally send to a mock SMTP server
 	// For now, we just verify the template renders correctly
-	ctx := context.Background()
+	_ = context.Background() // Would be used for actual sending
+	_ = service // Would be used for actual sending
 	
 	// Test that the function doesn't panic and processes the template
 	t.Run("template renders correctly", func(t *testing.T) {
@@ -125,13 +126,13 @@ func TestEmailService_SendBudgetAlert(t *testing.T) {
 }
 
 func TestNewEmailServiceFromEnv(t *testing.T) {
-	// Save and restore env vars
-	oldHost := t.Setenv("SMTP_HOST", "smtp.example.com")
-	oldPort := t.Setenv("SMTP_PORT", "587")
-	oldUsername := t.Setenv("SMTP_USERNAME", "user@example.com")
-	oldPassword := t.Setenv("SMTP_PASSWORD", "password")
-	oldFrom := t.Setenv("EMAIL_FROM_ADDRESS", "custom@example.com")
-	oldName := t.Setenv("EMAIL_FROM_NAME", "Custom Name")
+	// t.Setenv automatically handles cleanup
+	t.Setenv("SMTP_HOST", "smtp.example.com")
+	t.Setenv("SMTP_PORT", "587")
+	t.Setenv("SMTP_USERNAME", "user@example.com")
+	t.Setenv("SMTP_PASSWORD", "password")
+	t.Setenv("EMAIL_FROM_ADDRESS", "custom@example.com")
+	t.Setenv("EMAIL_FROM_NAME", "Custom Name")
 
 	service, err := NewEmailServiceFromEnv()
 	if err != nil {
