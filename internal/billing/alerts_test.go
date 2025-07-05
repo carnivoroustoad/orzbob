@@ -90,7 +90,7 @@ func TestBudgetAlertService_SendAlerts(t *testing.T) {
 
 			// Set subscription and usage
 			mockClient.AddSubscription(tt.customerID, tt.subscription)
-			quotaEngine.RecordUsage(tt.orgID, tt.customerID, tt.hoursUsed)
+			_ = quotaEngine.RecordUsage(tt.orgID, tt.customerID, tt.hoursUsed)
 
 			// Check organization
 			ctx := context.Background()
@@ -131,7 +131,7 @@ func TestBudgetAlertService_NoRepeatAlerts(t *testing.T) {
 	mockClient.AddSubscription(customerID, "prod_free_tier")
 
 	// First check - should send alert
-	quotaEngine.RecordUsage(orgID, customerID, 9) // 90% usage
+	_ = quotaEngine.RecordUsage(orgID, customerID, 9) // 90% usage
 	ctx := context.Background()
 	
 	err := alertService.checkOrganization(ctx, orgID)
@@ -172,8 +172,8 @@ func TestBudgetAlertService_ResetAfterBillingPeriod(t *testing.T) {
 	mockClient.AddSubscription(customerID, "prod_free_tier")
 
 	// Send alerts
-	quotaEngine.RecordUsage(orgID, customerID, 9) // 90% usage
-	alertService.checkOrganization(ctx, orgID)
+	_ = quotaEngine.RecordUsage(orgID, customerID, 9) // 90% usage
+	_ = alertService.checkOrganization(ctx, orgID)
 
 	// Manually set alert sent time to last month
 	alertService.alertsMu.Lock()

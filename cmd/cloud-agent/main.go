@@ -91,7 +91,7 @@ func main() {
 		sig := <-sigCh
 		log.Printf("Received signal: %v", sig)
 		// Kill tmux session
-		exec.Command("tmux", "kill-server").Run()
+		_ = exec.Command("tmux", "kill-server").Run()
 		done <- true
 	}()
 
@@ -173,7 +173,7 @@ func bootstrapRepository() error {
 	cmd = exec.Command("ls", "-la")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	_ = cmd.Run()
 
 	return nil
 }

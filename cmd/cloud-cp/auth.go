@@ -126,7 +126,7 @@ func (s *Server) handleAuthExchange(w http.ResponseWriter, r *http.Request) {
 	
 	// Return token and user info
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token,
 		"user": map[string]interface{}{
 			"id":     user.ID,
@@ -147,7 +147,7 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"user": user,
 	})
 }

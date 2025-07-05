@@ -469,7 +469,9 @@ func (t *TmuxSession) WSAttach(wsClient io.ReadWriteCloser, reconnectURL string)
 	go func() {
 		defer r.Close()
 		defer w.Close()
-		io.Copy(w, wsClient)
+		if _, err := io.Copy(w, wsClient); err != nil {
+			log.ErrorLog.Printf("Error copying WebSocket data to pipe: %v", err)
+		}
 	}()
 	
 	return nil

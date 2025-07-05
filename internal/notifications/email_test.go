@@ -2,31 +2,11 @@ package notifications
 
 import (
 	"context"
-	"net/smtp"
 	"strings"
 	"testing"
 	"time"
 )
 
-// mockSMTPServer captures sent emails for testing
-type mockSMTPServer struct {
-	sentEmails []sentEmail
-}
-
-type sentEmail struct {
-	from string
-	to   []string
-	msg  []byte
-}
-
-func (m *mockSMTPServer) ServeSMTP(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-	m.sentEmails = append(m.sentEmails, sentEmail{
-		from: from,
-		to:   to,
-		msg:  msg,
-	})
-	return nil
-}
 
 func TestEmailService_Send(t *testing.T) {
 	tests := []struct {

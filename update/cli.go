@@ -28,7 +28,9 @@ var (
 			}
 			
 			cfg := config.LoadConfig()
-			config.UpdateLastUpdateCheck(cfg)
+			if err := config.UpdateLastUpdateCheck(cfg); err != nil {
+				log.ErrorLog.Printf("Failed to update last update check timestamp: %v", err)
+			}
 			
 			if !hasUpdate {
 				fmt.Printf("You're already running the latest version (v%s).\n", CurrentVersion)
@@ -49,7 +51,10 @@ var (
 			
 			fmt.Print("Do you want to install this update? [y/N]: ")
 			var response string
-			fmt.Scanln(&response)
+			if _, err := fmt.Scanln(&response); err != nil {
+				// Treat error as "no" response
+				response = "N"
+			}
 			
 			if response == "y" || response == "Y" {
 				fmt.Println("Installing update...")
@@ -86,7 +91,11 @@ var (
 			}
 			
 			// Update the last check timestamp regardless of outcome
-			defer config.UpdateLastUpdateCheck(cfg)
+			defer func() {
+				if err := config.UpdateLastUpdateCheck(cfg); err != nil {
+					log.ErrorLog.Printf("Failed to update last update check timestamp: %v", err)
+				}
+			}()
 			
 			release, hasUpdate, err := CheckForUpdates()
 			if err != nil {

@@ -115,9 +115,9 @@ func (s *Session) handleEcho() {
 // handleEchoMode implements a simple echo server for testing
 func (s *Session) handleEchoMode() {
 	// Set up ping/pong to keep connection alive
-	s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	s.conn.SetPongHandler(func(string) error {
-		s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
@@ -161,7 +161,7 @@ func (s *Session) handleEchoMode() {
 		s.mu.Unlock()
 
 		// Reset read deadline
-		s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	}
 }
 
@@ -186,7 +186,7 @@ func NewClient(url string) (*Client, error) {
 
 	// Set up ping/pong
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
@@ -216,7 +216,7 @@ func NewClientWithToken(url string, token string) (*Client, error) {
 
 	// Set up ping/pong
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 

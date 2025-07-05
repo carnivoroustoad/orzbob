@@ -68,7 +68,7 @@ var cloudNewCmd = &cobra.Command{
 			var errResp struct {
 				Error string `json:"error"`
 			}
-			json.NewDecoder(resp.Body).Decode(&errResp)
+			_ = json.NewDecoder(resp.Body).Decode(&errResp)
 			return fmt.Errorf("failed to create instance: %s", errResp.Error)
 		}
 		
@@ -213,7 +213,7 @@ var cloudListCmd = &cobra.Command{
 			var errResp struct {
 				Error string `json:"error"`
 			}
-			json.NewDecoder(resp.Body).Decode(&errResp)
+			_ = json.NewDecoder(resp.Body).Decode(&errResp)
 			return fmt.Errorf("failed to list instances: %s", errResp.Error)
 		}
 
@@ -283,7 +283,7 @@ var cloudKillCmd = &cobra.Command{
 			var errResp struct {
 				Error string `json:"error"`
 			}
-			json.NewDecoder(resp.Body).Decode(&errResp)
+			_ = json.NewDecoder(resp.Body).Decode(&errResp)
 			return fmt.Errorf("failed to terminate instance: %s", errResp.Error)
 		}
 

@@ -137,8 +137,8 @@ func handleWebSocketAttach(w http.ResponseWriter, r *http.Request) {
 	<-done
 	
 	// Kill the tmux attach process
-	cmd.Process.Kill()
-	cmd.Wait()
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
 
 	log.Printf("WebSocket client disconnected")
 }
