@@ -28,7 +28,9 @@ jobs:
         cache: true
 
     - name: Run tests
-      run: go test -v ./...
+      run: |
+        # Exclude hack directory from tests
+        go test -v $(go list ./... | grep -v /hack)
 
     - name: Build
       env:
