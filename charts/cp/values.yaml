@@ -32,7 +32,7 @@ securityContext:
     - ALL
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 80
   targetPort: 8080
 
@@ -68,12 +68,17 @@ tolerations: []
 
 affinity: {}
 
+# ALB configuration
+alb:
+  enabled: true
+  annotations: {}
+
 # Control plane configuration
 config:
   provider: kind
   kubeconfig: ""
   logLevel: info
-  baseURL: "http://54.224.5.131"
+  baseURL: "http://k8s-orzbobsy-orzbobcl-916d817292-1979186931.us-east-1.elb.amazonaws.com"
   runnerImage: "ghcr.io/carnivoroustoad/orzbob/runner:latest"
 
 # RBAC configuration

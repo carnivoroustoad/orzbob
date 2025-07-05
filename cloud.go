@@ -339,7 +339,7 @@ func exchangeToken(githubToken string, user *OrzbobUser) (string, error) {
 	// Call Orzbob API to exchange GitHub token for API token
 	apiURL := os.Getenv("ORZBOB_API_URL")
 	if apiURL == "" {
-		apiURL = "http://54.224.5.131" // Your deployed API
+		apiURL = "http://k8s-orzbobsy-orzbobcl-916d817292-1979186931.us-east-1.elb.amazonaws.com" // ALB endpoint
 	}
 	
 	reqBody, _ := json.Marshal(map[string]interface{}{
