@@ -65,7 +65,6 @@ jobs:
           kubectl create namespace ${{ env.DEPLOY_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
       
       - name: Create Polar billing secrets
-        if: ${{ secrets.POLAR_API_KEY != '' }}
         run: |
           kubectl create secret generic polar-credentials \
             --from-literal=api-key="${{ secrets.POLAR_API_KEY }}" \
@@ -82,7 +81,6 @@ jobs:
             --overwrite
       
       - name: Create email configuration secret
-        if: ${{ secrets.SMTP_HOST != '' }}
         run: |
           kubectl create secret generic email-config \
             --from-literal=smtp-host="${{ secrets.SMTP_HOST }}" \
@@ -110,9 +108,9 @@ jobs:
             --namespace=${{ env.DEPLOY_NAMESPACE }} \
             --set image.repository=${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp \
             --set image.tag=${{ github.sha }} \
-            --set billing.enabled=${{ secrets.POLAR_API_KEY != '' }} \
+            --set billing.enabled=true \
             --set billing.existingSecret=polar-credentials \
-            --set email.enabled=${{ secrets.SMTP_HOST != '' }} \
+            --set email.enabled=false \
             --set email.existingSecret=email-config \
             --set ingress.enabled=true \
             --set ingress.hosts[0].host=api.orzbob.cloud \
