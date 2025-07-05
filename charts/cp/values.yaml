@@ -78,7 +78,7 @@ config:
   provider: kind
   kubeconfig: ""
   logLevel: info
-  baseURL: "http://k8s-orzbobsy-orzbobcl-916d817292-1979186931.us-east-1.elb.amazonaws.com"
+  baseURL: "http://api.orzbob.com"
   runnerImage: "ghcr.io/carnivoroustoad/orzbob/runner:latest"
 
 # RBAC configuration
