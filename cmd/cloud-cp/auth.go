@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -172,7 +173,7 @@ func verifyGitHubToken(token string, expectedID int64) bool {
 	
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("GitHub API error: %v\n", err)
+		// Log error but don't print to stdout in production
 		return false
 	}
 	defer resp.Body.Close()
