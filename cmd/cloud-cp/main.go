@@ -583,7 +583,7 @@ func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request) {
 	// }
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(billingInfo)
+	_ = json.NewEncoder(w).Encode(billingInfo)
 }
 
 // startIdleReaper periodically checks for idle instances and deletes them
@@ -711,7 +711,7 @@ func (s *Server) recordInstanceUsage(instance *provider.Instance) {
 func writeError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+	_ = json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }
 
 func main() {
