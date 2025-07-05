@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package orzbob.cloud.api.v1;
+
+option go_package = "orzbob/internal/cloud/api/v1;api";
+
+import "google/protobuf/timestamp.proto";
+
+// Instance represents a cloud runner instance
+message Instance {
+  string id = 1;
+  string org_id = 2;
+  string user_id = 3;
+  string tier = 4; // small, medium, gpu
+  InstanceStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string attach_url = 8;
+  map<string, string> metadata = 9;
+}
+
+enum InstanceStatus {
+  INSTANCE_STATUS_UNSPECIFIED = 0;
+  INSTANCE_STATUS_PENDING = 1;
+  INSTANCE_STATUS_RUNNING = 2;
+  INSTANCE_STATUS_TERMINATING = 3;
+  INSTANCE_STATUS_TERMINATED = 4;
+  INSTANCE_STATUS_FAILED = 5;
+}
+
+// CreateInstanceRequest for creating a new instance
+message CreateInstanceRequest {
+  string program = 1; // e.g., "claude", "aider"
+  string tier = 2; // small (default), medium, gpu
+  map<string, string> env = 3;
+  string repo_url = 4;
+  string branch = 5;
+}
+
+// CreateInstanceResponse returns the created instance
+message CreateInstanceResponse {
+  Instance instance = 1;
+}
+
+// GetInstanceRequest for retrieving an instance
+message GetInstanceRequest {
+  string id = 1;
+}
+
+// GetInstanceResponse returns the requested instance
+message GetInstanceResponse {
+  Instance instance = 1;
+}
+
+// ListInstancesRequest for listing instances
+message ListInstancesRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+// ListInstancesResponse returns a list of instances
+message ListInstancesResponse {
+  repeated Instance instances = 1;
+  string next_page_token = 2;
+}
+
+// DeleteInstanceRequest for terminating an instance
+message DeleteInstanceRequest {
+  string id = 1;
+}
+
+// DeleteInstanceResponse confirms deletion
+message DeleteInstanceResponse {
+  bool success = 1;
+}
+
+// AttachRequest for getting WebSocket URL
+message AttachRequest {
+  string instance_id = 1;
+}
+
+// AttachResponse returns signed WebSocket URL
+message AttachResponse {
+  string ws_url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// InstanceService defines the cloud instance management API
+service InstanceService {
+  rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc ListInstances(ListInstancesRequest) returns (ListInstancesResponse);
+  rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse);
+  rpc Attach(AttachRequest) returns (AttachResponse);
+}

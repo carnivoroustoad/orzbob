@@ -1,0 +1,363 @@
+name: Cloud CI/CD
+
+on:
+  push:
+    branches: [ main, feature/cloud-saas ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Run tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Run unit tests
+      run: |
+        go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v /hack)
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.txt
+        flags: unittests
+
+  # Job 2: Build binaries
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        binary: [cloud-cp, cloud-agent, orzbob]
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        BINARY_PATH="."
+        if [ "${{ matrix.binary }}" != "orzbob" ]; then
+          BINARY_PATH="./cmd/${{ matrix.binary }}"
+        fi
+        
+        BINARY_NAME="${{ matrix.binary }}"
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+        
+        go build -v -ldflags="-s -w" -o "build/${{ matrix.goos }}_${{ matrix.goarch }}/${BINARY_NAME}" ${BINARY_PATH}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.binary }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: build/${{ matrix.goos }}_${{ matrix.goarch }}/*
+        retention-days: 7
+
+  # Job 3: Build Docker images
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: cloud-cp
+            dockerfile: ./docker/control-plane.Dockerfile
+            context: .
+          - image: cloud-agent
+            dockerfile: ./docker/runner.Dockerfile
+            context: .
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=sha,prefix={{branch}}-
+          type=sha
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      timeout-minutes: 20  # Add timeout to prevent hanging
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        # Only build multi-arch on main branch to speed up CI
+        platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        # Increase builder resources
+        build-args: |
+          BUILDKIT_STEP_LOG_MAX_SIZE=10000000
+          BUILDKIT_STEP_LOG_MAX_SPEED=10000000
+
+  # Job 4: Helm lint
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.13.0'
+
+    - name: Lint control plane chart
+      run: |
+        helm lint charts/cp
+        # Validate helm template output without requiring a cluster
+        helm template charts/cp > /tmp/cp-manifest.yaml
+        # Basic YAML validation
+        python3 -c "import yaml; yaml.safe_load_all(open('/tmp/cp-manifest.yaml'))" || (echo "Invalid YAML in helm template" && exit 1)
+
+    - name: Lint logging chart
+      run: |
+        if [ -f charts/logging/Chart.yaml ]; then
+          helm lint charts/logging
+        fi
+
+  # Job 5: Kind E2E tests
+  kind-e2e:
+    name: Kind E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build-images, helm-lint]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Create kind cluster
+      uses: helm/kind-action@v1.8.0
+      with:
+        cluster_name: orzbob-e2e
+        node_image: kindest/node:v1.28.0
+
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Load Docker images
+      run: |
+        # For PRs, we need to pull and load the images
+        # Use the branch-sha tag format
+        BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
+        SHORT_SHA=${GITHUB_SHA::7}
+        
+        # Try different tag formats
+        echo "Trying to pull images with different tag formats..."
+        
+        # Try branch-shortsha format first
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}-${SHORT_SHA}; then
+          echo "Pulled with branch-shortsha tag"
+          CP_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        # Try sha-shortsha format
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:sha-${SHORT_SHA}; then
+          echo "Pulled with sha-shortsha tag"
+          CP_TAG="sha-${SHORT_SHA}"
+        # Try just branch name
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}; then
+          echo "Pulled with branch tag"
+          CP_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to pull cloud-cp image with any tag format"
+          echo "Available tags might be:"
+          echo "  ${BRANCH_NAME}-${SHORT_SHA}"
+          echo "  sha-${SHORT_SHA}"
+          echo "  ${BRANCH_NAME}"
+          exit 1
+        fi
+        
+        # Same for agent
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${BRANCH_NAME}-${SHORT_SHA}; then
+          echo "Pulled agent with branch-shortsha tag"
+          AGENT_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:sha-${SHORT_SHA}; then
+          echo "Pulled agent with sha-shortsha tag"
+          AGENT_TAG="sha-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${BRANCH_NAME}; then
+          echo "Pulled agent with branch tag"
+          AGENT_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to pull cloud-agent image"
+          exit 1
+        fi
+        
+        # Tag them for kind
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${CP_TAG} orzbob/cloud-cp:e2e
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-agent:${AGENT_TAG} orzbob/cloud-agent:e2e
+        
+        kind load docker-image orzbob/cloud-cp:e2e --name orzbob-e2e
+        kind load docker-image orzbob/cloud-agent:e2e --name orzbob-e2e
+
+    - name: Create runner namespace
+      run: |
+        kubectl create namespace orzbob-runners || true
+
+    - name: Install control plane
+      run: |
+        # Debug: Check what images are available in Kind
+        echo "Images loaded in Kind cluster:"
+        docker exec orzbob-e2e-control-plane crictl images
+        
+        helm install orzbob-cp charts/cp \
+          --set image.repository=orzbob/cloud-cp \
+          --set image.tag=e2e \
+          --set image.pullPolicy=Never \
+          --set config.runnerImage=orzbob/cloud-agent:e2e \
+          --wait --timeout 2m || {
+          echo "Installation failed, checking pod status..."
+          kubectl get pods
+          kubectl describe pods
+          echo "Checking pod logs..."
+          kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=50 || true
+          echo "Checking events..."
+          kubectl get events --sort-by='.lastTimestamp' | tail -20
+          exit 1
+        }
+
+    - name: Run E2E tests
+      run: |
+        # Check if control plane pod exists and is ready
+        echo "Checking for control plane pods..."
+        kubectl get pods -l app.kubernetes.io/name=orzbob-cp
+        
+        # Wait for control plane to be ready
+        if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=orzbob-cp --timeout=120s; then
+          echo "Control plane is ready"
+          
+          # Port forward control plane (service port 80 -> local 8080)
+          kubectl port-forward svc/orzbob-cp 8080:80 &
+          PF_PID=$!
+          sleep 5
+          
+          # Run smoke tests
+          go run hack/smoke-api.go
+          
+          # Run integration tests
+          go test -v -tags=e2e ./test/e2e/...
+          
+          # Cleanup
+          kill $PF_PID || true
+        else
+          echo "Control plane failed to become ready"
+          kubectl get pods
+          kubectl describe pods -l app.kubernetes.io/name=orzbob-cp
+          kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=100
+          exit 1
+        fi
+
+    - name: Collect logs on failure
+      if: failure()
+      run: |
+        kubectl describe pods || echo "Unable to describe pods"
+        kubectl logs -l app.kubernetes.io/name=orzbob-cp --tail=100 || echo "No control plane logs found"
+        kubectl logs -l app=orzbob-runner --tail=100 || echo "No agent logs found"
+
+  # Job 6: Security scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-images
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Determine image tag
+      id: image-tag
+      run: |
+        BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        BRANCH_NAME=${BRANCH_NAME//\//-} # Replace / with -
+        SHORT_SHA=${GITHUB_SHA::7}
+        
+        # Try to determine which tag format was used
+        if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}-${SHORT_SHA}; then
+          IMAGE_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:sha-${SHORT_SHA}; then
+          IMAGE_TAG="sha-${SHORT_SHA}"
+        elif docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${BRANCH_NAME}; then
+          IMAGE_TAG="${BRANCH_NAME}"
+        else
+          echo "Failed to find image with any expected tag"
+          exit 1
+        fi
+        
+        echo "Using image tag: ${IMAGE_TAG}"
+        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cloud-cp:${{ steps.image-tag.outputs.tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: success()
+      with:
+        sarif_file: 'trivy-results.sarif'
