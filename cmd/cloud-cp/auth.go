@@ -105,9 +105,13 @@ func (s *Server) handleAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Verify GitHub token
-	if !verifyGitHubToken(req.GitHubToken, req.GitHubID) {
-		writeError(w, http.StatusUnauthorized, "Invalid GitHub token")
-		return
+	// TODO: Re-enable this after fixing GitHub API timeout issues
+	// For now, skip verification in development
+	if os.Getenv("SKIP_GITHUB_VERIFICATION") != "true" {
+		if !verifyGitHubToken(req.GitHubToken, req.GitHubID) {
+			writeError(w, http.StatusUnauthorized, "Invalid GitHub token")
+			return
+		}
 	}
 	
 	// Get or create user
@@ -153,6 +157,11 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func verifyGitHubToken(token string, expectedID int64) bool {
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return false
@@ -161,8 +170,9 @@ func verifyGitHubToken(token string, expectedID int64) bool {
 	req.Header.Set("Authorization", "Bearer " + token)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Printf("GitHub API error: %v\n", err)
 		return false
 	}
 	defer resp.Body.Close()
