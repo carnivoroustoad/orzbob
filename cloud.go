@@ -217,16 +217,20 @@ var cloudListCmd = &cobra.Command{
 			return fmt.Errorf("failed to list instances: %s", errResp.Error)
 		}
 
-		var instances []struct {
-			ID        string    `json:"id"`
-			Status    string    `json:"status"`
-			Tier      string    `json:"tier"`
-			CreatedAt time.Time `json:"created_at"`
+		var response struct {
+			Instances []struct {
+				ID        string    `json:"id"`
+				Status    string    `json:"status"`
+				Tier      string    `json:"tier"`
+				CreatedAt time.Time `json:"created_at"`
+			} `json:"instances"`
 		}
 
-		if err := json.NewDecoder(resp.Body).Decode(&instances); err != nil {
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return fmt.Errorf("failed to decode response: %w", err)
 		}
+
+		instances := response.Instances
 
 		if len(instances) == 0 {
 			fmt.Println("No cloud instances found")
