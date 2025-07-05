@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.cloud-cp
+          file: ./docker/control-plane.Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}/cloud-cp:${{ github.sha }}
