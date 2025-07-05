@@ -37,7 +37,11 @@ func NewMeteringService(config *Config) (*MeteringService, error) {
 	}
 
 	client := NewPolarClient(config.PolarAPIKey, config.PolarOrgID)
-	
+	return NewMeteringServiceWithClient(config, client)
+}
+
+// NewMeteringServiceWithClient creates a new metering service with a specific client
+func NewMeteringServiceWithClient(config *Config, client PolarClientInterface) (*MeteringService, error) {
 	// Create quota engine with file persistence
 	var quotaEngine *QuotaEngine
 	dataDir := os.Getenv("ORZBOB_DATA_DIR")

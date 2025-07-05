@@ -15,8 +15,21 @@ func TestManager_BudgetAlerts(t *testing.T) {
 		PolarWebhookSecret: "test-secret",
 	}
 
-	// Create manager
-	manager, err := NewManager(config)
+	// Create mock client
+	mockClient := NewMockPolarClient()
+	mockClient.SetupDefaultProducts()
+	
+	// Set up subscription for test org
+	mockClient.subscriptions["customer-test-org"] = &SubscriptionResponse{
+		ID:         "sub-123",
+		CustomerID: "customer-test-org",
+		ProductID:  "prod_base_plus_usage",
+		Status:     "active",
+		CreatedAt:  time.Now(),
+	}
+
+	// Create manager with mock client
+	manager, err := NewManagerWithClient(config, mockClient)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -31,7 +44,6 @@ func TestManager_BudgetAlerts(t *testing.T) {
 
 	// Set up test organization
 	orgID := "test-org"
-	manager.SetSubscription(orgID, "base-plus-usage") // 200 hours included
 
 	// Test 50% usage alert
 	t.Run("50% usage alert", func(t *testing.T) {

@@ -21,7 +21,11 @@ type Manager struct {
 func NewManager(config Config) (*Manager, error) {
 	// Create Polar client
 	client := NewPolarClient(config.PolarAPIKey, config.PolarOrgID)
+	return NewManagerWithClient(config, client)
+}
 
+// NewManagerWithClient creates a new billing manager with a specific client (for testing)
+func NewManagerWithClient(config Config, client PolarClientInterface) (*Manager, error) {
 	// Create quota engine
 	quotaEngine, err := NewQuotaEngine(client, nil)
 	if err != nil {
@@ -29,7 +33,7 @@ func NewManager(config Config) (*Manager, error) {
 	}
 
 	// Create metering service
-	meteringService, err := NewMeteringService(&config)
+	meteringService, err := NewMeteringServiceWithClient(&config, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metering service: %w", err)
 	}
