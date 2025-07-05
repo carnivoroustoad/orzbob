@@ -239,11 +239,19 @@ jobs:
                 -o "dist/orz-${OS}-${ARCH}/${BINARY_NAME}" \
                 .
               
-              # Create tarball/zip
+              # Create archive with expected naming format
               if [ "$OS" = "windows" ]; then
-                (cd dist && zip -r "orz-${OS}-${ARCH}.zip" "orz-${OS}-${ARCH}")
+                # For Windows, create directory with just binary
+                mkdir -p "dist/archive-tmp"
+                cp "dist/orz-${OS}-${ARCH}/${BINARY_NAME}" "dist/archive-tmp/orzbob.exe"
+                (cd dist/archive-tmp && zip -r "../orzbob_${VERSION}_${OS}_${ARCH}.zip" .)
+                rm -rf "dist/archive-tmp"
               else
-                (cd dist && tar -czf "orz-${OS}-${ARCH}.tar.gz" "orz-${OS}-${ARCH}")
+                # For Unix, create directory with just binary
+                mkdir -p "dist/archive-tmp"
+                cp "dist/orz-${OS}-${ARCH}/${BINARY_NAME}" "dist/archive-tmp/orzbob"
+                (cd dist/archive-tmp && tar -czf "../orzbob_${VERSION}_${OS}_${ARCH}.tar.gz" .)
+                rm -rf "dist/archive-tmp"
               fi
             done
           done
@@ -299,8 +307,9 @@ jobs:
             #### Manual Download
             ```bash
             # macOS/Linux
-            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/orz-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar xz
-            sudo mv orz-*/orz /usr/local/bin/
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/orzbob_${{ steps.get_version.outputs.VERSION }}_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar xz
+            sudo mv orzbob /usr/local/bin/orz
+            chmod +x /usr/local/bin/orz
             ```
             
             ### Getting Started
