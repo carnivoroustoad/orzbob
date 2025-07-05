@@ -43,7 +43,7 @@ var cloudNewCmd = &cobra.Command{
 		// Call API
 		apiURL := os.Getenv("ORZBOB_API_URL")
 		if apiURL == "" {
-			apiURL = "http://54.224.5.131"
+			apiURL = "http://api.orzbob.com"
 		}
 		
 		reqBody, _ := json.Marshal(map[string]string{
