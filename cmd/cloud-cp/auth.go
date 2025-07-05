@@ -106,13 +106,9 @@ func (s *Server) handleAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Verify GitHub token
-	// TODO: Re-enable this after fixing GitHub API timeout issues
-	// For now, skip verification in development
-	if os.Getenv("SKIP_GITHUB_VERIFICATION") != "true" {
-		if !verifyGitHubToken(req.GitHubToken, req.GitHubID) {
-			writeError(w, http.StatusUnauthorized, "Invalid GitHub token")
-			return
-		}
+	if !verifyGitHubToken(req.GitHubToken, req.GitHubID) {
+		writeError(w, http.StatusUnauthorized, "Invalid GitHub token")
+		return
 	}
 	
 	// Get or create user
